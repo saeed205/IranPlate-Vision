@@ -1,0 +1,31 @@
+# Lint config for IranPlate Vision. Kept deliberately narrow: rules that catch
+# real defects, not rules that churn working code.
+line-length = 100
+target-version = "py310"
+
+[lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes: undefined names, unused imports
+    "I",      # import sorting
+    "B",      # bugbear: likely bugs
+    "UP",     # pyupgrade
+    "C4",     # comprehensions
+    "BLE",    # blind except - each one must carry a justifying noqa
+    "PLE",    # pylint errors, incl. bidirectional-unicode (Trojan Source)
+    "RUF",
+]
+ignore = [
+    # printf-style formatting is used throughout on purpose: it keeps the
+    # bilingual "English | فارسی" strings readable and matches logging calls.
+    "UP031",
+    # This project is about Persian plates. RUF001-003 flag every Arabic letter
+    # as "ambiguous" with a Latin lookalike, which is noise here — the Persian
+    # text is the domain, not a homoglyph attack. PLE2502 still guards against
+    # invisible bidirectional control characters, which is the real risk.
+    "RUF001",
+    "RUF002",
+    "RUF003",
+    "E501",   # length is enforced by line-length above, not per-line
+]

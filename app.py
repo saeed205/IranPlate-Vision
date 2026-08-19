@@ -23,8 +23,16 @@ import queue
 import re
 
 import cv2
-from flask import (Flask, Response, jsonify, make_response, render_template,
-                   request, send_from_directory, stream_with_context)
+from flask import (
+    Flask,
+    Response,
+    jsonify,
+    make_response,
+    render_template,
+    request,
+    send_from_directory,
+    stream_with_context,
+)
 from werkzeug.exceptions import HTTPException
 
 import camera_manager as cm
@@ -52,7 +60,7 @@ try:
         PLATE_DATA = json.load(f)
 except (OSError, ValueError) as exc:
     raise SystemExit('Cannot read %s: %s | خواندن داده‌های پلاک ممکن نشد'
-                     % (PLATE_DATA_PATH, exc))
+                     % (PLATE_DATA_PATH, exc)) from exc
 
 
 # ── plate_data.json indexes (built once, canonical letters) ───────────────────
@@ -466,7 +474,7 @@ def api_events():
                 try:
                     evt = q.get(timeout=HEARTBEAT_SECONDS)
                     yield 'data: %s\n\n' % json.dumps(evt, ensure_ascii=False)
-                except Exception:                        # queue.Empty
+                except queue.Empty:
                     yield ': heartbeat\n\n'
         finally:
             cm.unsubscribe(q)

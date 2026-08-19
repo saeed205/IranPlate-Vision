@@ -62,8 +62,8 @@ def load_async():
 def _load():
     global _det, _ocr, _error
     try:
-        from ultralytics import YOLO
         from hezar.models import Model
+        from ultralytics import YOLO
 
         if not os.path.exists(WEIGHTS):
             raise FileNotFoundError(

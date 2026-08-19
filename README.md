@@ -1,226 +1,278 @@
-# IranPlate Vision | سامانه IranPlate Vision
-
 <div align="center">
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![Flask](https://img.shields.io/badge/Flask-API-000000?style=for-the-badge&logo=flask&logoColor=white)
-![YOLO](https://img.shields.io/badge/YOLO-Detection-00FFFF?style=for-the-badge)
-![OpenCV](https://img.shields.io/badge/OpenCV-Computer%20Vision-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-Local%20DB-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+<img src="docs/hero.png" alt="IranPlate Vision" width="100%">
+
+# IranPlate Vision
+
+**Iranian license plate detection with Persian OCR, multi-camera RTSP monitoring, and a bilingual dashboard.**
+
+Point it at an image or an RTSP stream and it returns the plate, the vehicle
+class, and the issuing province — then logs every passing vehicle and flags the
+ones on your block list.
+
+[![CI](https://github.com/saeed205/IranPlate-Vision/actions/workflows/ci.yml/badge.svg)](https://github.com/saeed205/IranPlate-Vision/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.x-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![YOLO](https://img.shields.io/badge/YOLO-Ultralytics-00B8D4)](https://docs.ultralytics.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-4ade80.svg)](LICENSE)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-6c63ff.svg)](CONTRIBUTING.md)
+
+**[فارسی](README.fa.md)** · [Quick start](#quick-start) · [How it works](#how-it-works) · [API](#api) · [Configuration](#configuration)
 
 </div>
 
-![IranPlate Vision Hero](docs/hero.png)
+---
 
-> Real-time Persian plate detection + RTSP monitoring + bilingual dashboard, runnable in minutes.
->
-> Note: This repository is maintained as a fork of [12345zahraa/Persian-Plates-Detection](https://github.com/12345zahraa/Persian-Plates-Detection).
+## What it does
 
-## Demo
+| | |
+|---|---|
+| 🔍 **Plate detection** | YOLO detector plus a Persian CRNN OCR model, from an uploaded image or a phone camera |
+| 🏷️ **Plate decoding** | Splits the plate, identifies the vehicle class from its letter (private, taxi, government, police, army…), and resolves the two-digit suffix to a province and city |
+| 📹 **Multi-camera RTSP** | One worker thread per camera with automatic reconnect, bounded connect timeouts, and a live preview |
+| 🚦 **Access control** | Allow/block lists per plate; blocked plates raise an alert the moment they are seen |
+| 📜 **Access log** | Every entry and exit recorded with camera, role, confidence, timestamp, and the cropped plate image |
+| ⚡ **Live updates** | Server-Sent Events push detections and camera health to the dashboard with no polling |
+| 🌐 **Bilingual UI** | Full English and Persian, RTL-aware, switchable at runtime with no reload |
 
 ## Screenshots
 
-### Home
-| EN | FA |
+<div align="center">
+
+| Dashboard | Scan result |
 |---|---|
-| ![Home EN](docs/screenshots/home-en.png) | ![Home FA](docs/screenshots/home-fa.png) |
+| <img src="docs/screenshots/home-en.png" alt="Home" width="420"> | <img src="docs/screenshots/result-en.png" alt="Result" width="420"> |
 
-### Scan & Result
-| EN | FA |
+| Camera management | Persian (RTL) |
 |---|---|
-| ![Scan EN](docs/screenshots/scan-en.png) | ![Scan FA](docs/screenshots/scan-fa.png) |
-| ![Result EN](docs/screenshots/result-en.png) | ![Result FA](docs/screenshots/result-fa.png) |
+| <img src="docs/screenshots/cameras-en.png" alt="Cameras" width="420"> | <img src="docs/screenshots/scan-fa.png" alt="Scan in Persian" width="420"> |
 
-### RTSP Cameras
-| EN | FA |
-|---|---|
-| ![Cameras EN](docs/screenshots/cameras-en.png) | ![Cameras FA](docs/screenshots/cameras-fa.png) |
+</div>
 
-## Why This Project Is Different | تفاوت این پروژه
-- End-to-end workflow: detection + OCR + metadata + camera events in one app.
-- Built-in multi-camera RTSP workers with reconnect and SSE live feed.
-- Bilingual docs/messages (English + Persian) for broader adoption.
+## Quick start
 
-## One Command Run
 ```bash
-make up
-```
-Then open `http://localhost:5000`.
-
-`python app.py` starts Flask's development server, which is fine for local use.
-For anything shared, run the bundled WSGI server instead — this is what the
-Docker image does:
-```bash
-make serve         # waitress-serve --host=0.0.0.0 --port=5000 --threads=8 app:app
-```
-The first start downloads the OCR model (~50 MB) and `/detect` answers `503`
-until it finishes; poll `/health` to wait for readiness.
-
-## راهنمای فارسی سریع
-این پروژه یک سامانه تشخیص پلاک ایرانی است که شامل:
-- تشخیص پلاک با مدل YOLO
-- OCR پلاک فارسی
-- مدیریت دوربین‌های RTSP
-- ثبت لاگ تردد و مدیریت لیست مجاز/غیرمجاز
-
-### اجرای سریع
-```bash
-python -m venv .venv
-.venv\Scripts\activate
+git clone https://github.com/saeed205/IranPlate-Vision.git
+cd IranPlate-Vision
+python -m venv .venv && . .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python app.py
 ```
 
-آدرس‌ها:
-- `http://localhost:5000`
-- `http://localhost:5000/scan`
-- `http://localhost:5000/cameras`
+Open <http://localhost:5000>.
 
-### اجرای Docker
+The first start downloads the Persian OCR model (~50 MB). Until it finishes,
+`/detect` answers `503` and the dashboard shows a loading indicator — poll
+`/health` if you need to wait for readiness programmatically.
+
+<details>
+<summary><b>Docker</b></summary>
+
 ```bash
 docker compose up --build
 ```
 
-### تست سلامت
-ابتدا سرور را بالا بیاورید، سپس:
-```bash
-python scripts/smoke_test.py
-```
+The image serves through waitress as a non-root user. The database and the model
+cache live in named volumes, so a rebuild does not re-download the model.
 
-## Quick Local Run
-```bash
-python -m venv .venv
-.venv\\Scripts\\activate
-pip install -r requirements.txt
-python app.py
-```
+</details>
 
-## Local HTTPS (Test Only)
-If you want to run local HTTPS for camera/mobile testing, create a self-signed certificate:
+<details>
+<summary><b>Scanning from a phone</b></summary>
 
-### Windows (PowerShell + OpenSSL)
-```bash
-openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
-  -keyout key.pem -out cert.pem \
-  -subj "/C=IR/ST=Tehran/L=Tehran/O=IranPlateVision/OU=Dev/CN=localhost"
-```
+Browsers only expose the camera on a secure origin, so plain HTTP over your LAN
+will not work. Run:
 
-Then run:
 ```bash
 python run_https.py
 ```
 
-Notes:
-- `cert.pem` and `key.pem` are for local development/testing only.
-- For production/public deployment, use a valid certificate from a trusted CA (or your organization PKI).
-- Do not commit real private keys to Git.
+It generates a self-signed certificate that includes your LAN address in its
+SAN, then prints the URL to open on the phone. Accept the browser warning via
+**Advanced → Proceed**.
 
-## Tests
-No server or models needed — parsing, lookup and the whole JSON API:
+</details>
+
+<details>
+<summary><b>Production</b></summary>
+
+`python app.py` is Flask's development server. For anything shared, use:
+
 ```bash
-make test          # python scripts/test_plates.py
+make serve    # waitress-serve --host=0.0.0.0 --port=5000 --threads=8 app:app
 ```
 
-Against a running server:
-```bash
-make smoke         # python scripts/smoke_test.py [base_url]
+> [!WARNING]
+> There is **no authentication**. Anyone who can reach the port can view your
+> cameras and edit your plate lists. Keep it on a trusted network, or put it
+> behind a reverse proxy that handles TLS and auth. See [SECURITY.md](SECURITY.md).
+
+</details>
+
+## How it works
+
+```mermaid
+flowchart LR
+    subgraph Inputs
+        A[Image upload<br/>or phone camera]
+        B[RTSP cameras]
+    end
+
+    subgraph "models.py — serialised inference"
+        D[YOLO detector<br/>best.pt]
+        E[Persian CRNN OCR<br/>hezar]
+    end
+
+    A -->|POST /detect| D
+    B -->|worker thread<br/>per camera| D
+    D -->|plate crops| E
+    E -->|raw text| F["plates.py<br/>canonical form"]
+    F --> G["plate_data.json<br/>class · province · city"]
+    F --> H[(SQLite<br/>traffic.db)]
+    H --> I[Access log<br/>allow / block lists]
+    F -->|Server-Sent Events| J[Dashboard<br/>EN / FA]
+    G --> J
+    I --> J
 ```
 
-## Docker
-```bash
-docker compose up --build
-```
+Both entry points share one inference module, and every model call is serialised
+behind a lock — torch modules are not safe to call from several threads at once.
 
-## Project Structure
-```text
-.
-├── app.py               # Flask routes, plate_data indexes, JSON error handling
-├── models.py            # lazy model loading + serialised inference
-├── plates.py            # canonical plate parsing / normalisation
-├── camera_manager.py    # RTSP workers, SSE event bus
-├── db.py                # SQLite schema, queries, migrations
-├── run_https.py         # self-signed TLS for phone camera access
-├── best.pt
-├── plate_data.json
-├── templates/           # menu.html · index.html (scan) · cameras.html
-├── static/i18n.js
-├── fonts/
-├── scripts/
-│   ├── test_plates.py      # offline checks, no server or models needed
-│   ├── smoke_test.py        # hits a running server
-│   └── test_rtsp_sources.py
-├── Dockerfile
-├── docker-compose.yml
-├── Makefile
-└── .github/
-```
+**Plate format.** Everything is normalised to one canonical string,
+`24ن144-66`: two digits, the letter, three digits, a dash, and the two-digit
+province code. Persian and Arabic-Indic digits are accepted, separators are
+optional, and the interchangeable letter spellings `ا`/`الف`, `ه`/`ھ`, `ي`/`ی`,
+`ك`/`ک` are folded together. Comparing raw OCR output instead of the canonical
+form is what previously broke the allow/block list.
 
-## API Endpoints
+<div align="center">
+
+| Letter | Vehicle class | | Letter | Vehicle class |
+|:--:|---|---|:--:|---|
+| `ب ج د س ص ط ق ل م ن و ه` | Private | | `الف` | Government |
+| `ت` | Taxi | | `پ` | Police |
+| `ع` | Public transport | | `ش` | Army |
+| `ک` | Agricultural | | `ث` | IRGC |
+| `ژ` | Disabled veterans | | `ف ز` | Armed forces |
+| `گ` | Temporary transit | | | |
+
+</div>
+
+## API
+
+Every response is JSON, including errors: `{"error": "English | فارسی"}`.
+
 | Method | Path | Notes |
 |---|---|---|
 | `GET` | `/status` | `{ready, error, cameras, clients}` |
-| `GET` | `/health` | 200 when models are loaded, 503 otherwise |
+| `GET` | `/health` | `200` once models are loaded, `503` before |
 | `POST` | `/detect` | multipart `image`; max 16 MB |
 | `GET` `POST` | `/api/cameras` | RTSP passwords are masked in responses |
 | `GET` `PUT` `DELETE` | `/api/cameras/<id>` | |
 | `POST` | `/api/cameras/<id>/toggle` | body `{enabled}` |
 | `GET` | `/api/cameras/<id>/snapshot` | `{image, age}` |
-| `GET` | `/api/events` | SSE: `detection`, `camera_status` |
-| `GET` `DELETE` | `/api/log` | `?limit=` 1..1000 |
-| `GET` | `/api/log/<id>/crop` | stored plate crop |
-| `GET` `POST` | `/api/vehicles` | |
+| `GET` | `/api/events` | SSE stream: `detection`, `camera_status` |
+| `GET` `DELETE` | `/api/log` | `?limit=` 1–1000 |
+| `GET` | `/api/log/<id>/crop` | the stored plate crop |
+| `GET` `POST` | `/api/vehicles` | allow/block lists |
 | `DELETE` | `/api/vehicles/<plate>` | |
 
-Every error response is JSON: `{"error": "English | فارسی"}`.
+<details>
+<summary><b>Example: detect a plate</b></summary>
 
-### Plate format | قالب پلاک
-Plates are stored and compared in one canonical form: **`24ن144-66`** —
-two digits, the letter, three digits, a dash, the two-digit province code.
-Input is accepted with Persian or Arabic-Indic digits, with or without
-separators; `ا`/`الف`, `ه`/`ھ`, `ي`/`ی` and `ك`/`ک` are folded together.
+```bash
+curl -s -F image=@car.jpg http://localhost:5000/detect | jq '{plate, best_conf, plate_info}'
+```
 
-## Configuration | تنظیمات
+```json
+{
+  "plate": "24ن144-66",
+  "best_conf": 0.9328,
+  "plate_info": {
+    "prefix": "24", "letter": "ن", "middle": "144", "suffix": "66",
+    "canonical": "24ن144-66",
+    "vehicle_type": { "id": "shakhsi", "type": "خودروهای شخصی", "bg": "#f2ede0" },
+    "locations": [{ "province": "تهران", "city": "تهران" }]
+  }
+}
+```
+
+</details>
+
+## Configuration
+
 All optional; defaults in parentheses.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PLATE_HOST` / `PLATE_PORT` | `0.0.0.0` / `5000` | bind address |
+| `PLATE_HOST` / `PLATE_PORT` | `0.0.0.0` / `5000` | Bind address |
 | `PLATE_DB` | `./traffic.db` | SQLite path |
-| `PLATE_LOG_LEVEL` | `INFO` | Python logging level |
-| `PLATE_MAX_UPLOAD_MB` | `16` | upload cap for `/detect` |
-| `PLATE_MAX_IMAGE_SIDE` | `1920` | uploads are downscaled to this |
-| `PLATE_DET_CONF` | `0.4` | detector confidence threshold |
-| `PLATE_WEIGHTS` | `./best.pt` | detector weights |
-| `PLATE_OCR_MODEL` | `hezarai/crnn-fa-...-v2` | OCR model id |
-| `PLATE_DETECT_INTERVAL` | `2.0` | seconds between RTSP detections |
-| `PLATE_SNAPSHOT_FPS` | `4` | live-preview encode rate |
-| `PLATE_RECONNECT_WAIT` | `5.0` | seconds before an RTSP retry |
-| `PLATE_LOG_MAX_ROWS` | `5000` | access-log cap (rows store JPEG crops) |
+| `PLATE_LOG_LEVEL` | `INFO` | Logging level |
+| `PLATE_MAX_UPLOAD_MB` | `16` | Upload cap for `/detect` |
+| `PLATE_MAX_IMAGE_SIDE` | `1920` | Uploads are downscaled to this |
+| `PLATE_DET_CONF` | `0.4` | Detector confidence threshold |
+| `PLATE_WEIGHTS` | `./best.pt` | Detector weights |
+| `PLATE_OCR_MODEL` | `hezarai/crnn-fa-…-v2` | OCR model id |
+| `PLATE_DETECT_INTERVAL` | `2.0` | Seconds between RTSP detections |
+| `PLATE_SNAPSHOT_FPS` | `4` | Live-preview encode rate |
 | `PLATE_OPEN_TIMEOUT_MS` | `6000` | RTSP connect timeout |
-| `PLATE_ALLOW_LOCAL_SOURCES` | unset | allow file paths as camera sources (testing only — the app has no auth) |
+| `PLATE_RECONNECT_WAIT` | `5.0` | Seconds before an RTSP retry |
+| `PLATE_LOG_MAX_ROWS` | `5000` | Access-log cap (rows store JPEG crops) |
+| `PLATE_ALLOW_LOCAL_SOURCES` | unset | Allow file paths as camera sources — testing only, see [SECURITY.md](SECURITY.md) |
 
-## Launch Checklist (Trending Pack)
-- Add `docs/demo.gif` and 3 screenshots.
-- Set GitHub topics: `license-plate-recognition`, `persian-ocr`, `yolo`, `flask`, `rtsp`, `computer-vision`.
-- Publish release `v1.0.0` with concise release notes.
-- Share launch post on X/LinkedIn/Reddit with demo.
-- Keep issue/PR response fast in first 24 hours.
+## Development
 
-## Public Release Checklist
-- Remove local HTTPS secrets and DB artifacts before first public push:
-  `cert.pem`, `key.pem`, `traffic.db`, `traffic.db-shm`, `traffic.db-wal`.
-- Keep large model files out of Git when possible (`best.pt`), or use release assets / model download step.
-- Verify `.gitignore` is active in the actual Git repo root.
-- Run smoke test before tagging:
-  `python scripts/smoke_test.py`
-- Confirm both `/scan` and `/cameras` views work in `EN` and `FA`.
+```bash
+pip install -r requirements-dev.txt
+
+make test     # 69 offline checks — no server, no models needed
+make smoke    # every endpoint against a running server
+ruff check .  # lint
+```
+
+`make test` covers plate normalisation, the province lookup, the JSON API, and
+the RTSP worker's detection bookkeeping. Because the models load lazily, it runs
+in seconds without ultralytics or torch installed.
+
+<details>
+<summary><b>Project layout</b></summary>
+
+```text
+app.py                 Flask routes, plate_data indexes, JSON error handling
+models.py              Lazy model loading, serialised inference
+plates.py              Canonical plate parsing and normalisation
+camera_manager.py      RTSP worker threads, SSE event bus
+db.py                  SQLite schema, queries, migrations
+run_https.py           Self-signed TLS for phone camera access
+plate_data.json        Province, city and vehicle-class tables
+best.pt                YOLO detector weights
+templates/             menu.html · index.html (scan) · cameras.html
+static/i18n.js         Runtime EN/FA switching
+scripts/               Test suites and RTSP probes
+```
+
+</details>
 
 ## Contributing
-See:
-- `.github/ISSUE_TEMPLATE/bug_report.yml`
-- `.github/ISSUE_TEMPLATE/feature_request.yml`
-- `.github/pull_request_template.md`
+
+Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
+and the [Code of Conduct](CODE_OF_CONDUCT.md). Good first areas: additional
+plate formats (motorcycle, diplomatic), OCR accuracy on night footage, and
+authentication.
+
+Please never attach real RTSP credentials or footage of identifiable people to an
+issue.
+
+## Acknowledgements
+
+- Plate detection built on [Ultralytics YOLO](https://docs.ultralytics.com/)
+- Persian OCR by [hezarai/crnn-fa-license-plate-recognition-v2](https://huggingface.co/hezarai/crnn-fa-license-plate-recognition-v2)
+- Maintained as a fork of [12345zahraa/Persian-Plates-Detection](https://github.com/12345zahraa/Persian-Plates-Detection)
 
 ## License
-MIT - see `LICENSE`.
+
+[MIT](LICENSE). The bundled model weights and fonts keep their own licenses.
+
+<div align="center">
+<sub>If this project is useful to you, a ⭐ helps others find it.</sub>
+</div>

@@ -3,8 +3,6 @@ Offline checks for plate parsing, the province lookup and the JSON API.
 
 No server and no ML models needed:  python scripts/test_plates.py
 """
-import io
-import json
 import os
 import sys
 import tempfile
@@ -13,9 +11,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Keep the developer's real traffic.db out of the way.
 os.environ.setdefault('PLATE_DB', os.path.join(tempfile.mkdtemp(), 'test.db'))
 
-import app as flask_app                                    # noqa: E402
-import db                                                  # noqa: E402
-import plates                                              # noqa: E402
+import app as flask_app
+import db
+import plates
 
 failures = []
 
@@ -51,7 +49,8 @@ check('heh U+06BE folds', plates.normalize('12ھ12345'), '12ه123-45')
 check('heh U+0647 folds', plates.normalize('12ه12345'), '12ه123-45')
 check('arabic yeh folds', plates.normalize('12ي12345'), '12ی123-45')
 check('arabic kaf folds', plates.normalize('12ك12345'), '12ک123-45')
-check('embedded bidi marks stripped', plates.normalize('‪24ن144-66‬'), '24ن144-66')
+check('embedded bidi marks stripped',
+      plates.normalize('\u202a24ن144-66\u202c'), '24ن144-66')
 
 # ── province / type lookup ───────────────────────────────────────────────────
 section('province + vehicle type lookup')

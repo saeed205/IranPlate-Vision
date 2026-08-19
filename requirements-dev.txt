@@ -1,0 +1,11 @@
+# Dependencies for the offline test suites and the linter.
+#
+# The detector and OCR models are loaded lazily at runtime, so ultralytics,
+# torch and hezar are NOT needed to run the tests — which keeps CI to seconds.
+# Install requirements.txt as well if you want to exercise real inference.
+flask>=3.0,<4.0
+waitress>=3.0,<4.0
+numpy>=1.26
+pillow>=10.0
+opencv-python-headless>=4.8,<5.0
+ruff>=0.6,<1.0

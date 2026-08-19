@@ -48,7 +48,7 @@ def _load_letters():
     for t in data.get('carplate_types', []):
         for raw in t.get('letters', []):
             letters.add(canonical_letter(raw))
-    return {l for l in letters if l}
+    return {letter for letter in letters if letter}
 
 
 def canonical_letter(raw):
@@ -71,7 +71,8 @@ LETTERS = _load_letters() or {
 
 # Longest first so that "الف" wins over "ا".
 _LETTER_ALT = '|'.join(
-    re.escape(l) for l in sorted(LETTERS | set(_LETTER_ALIASES), key=len, reverse=True)
+    re.escape(spelling)
+    for spelling in sorted(LETTERS | set(_LETTER_ALIASES), key=len, reverse=True)
 )
 
 # 2 digits · letter · 3 digits · 2 digits, with optional separators between groups.

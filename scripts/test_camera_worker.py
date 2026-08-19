@@ -13,9 +13,9 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('PLATE_DB', os.path.join(tempfile.mkdtemp(), 'worker.db'))
 
-import camera_manager as cm                                # noqa: E402
-import db                                                  # noqa: E402
-import models                                              # noqa: E402
+import camera_manager as cm
+import db
+import models
 
 failures = []
 

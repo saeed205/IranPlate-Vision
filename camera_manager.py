@@ -30,7 +30,7 @@ os.environ.setdefault(
     'OPENCV_FFMPEG_CAPTURE_OPTIONS',
     'rtsp_transport;tcp|timeout;5000000|stimeout;5000000|max_delay;500000')
 
-import cv2  # noqa: E402  - import order matters for the env var above
+import cv2
 
 import db
 import models
@@ -102,7 +102,7 @@ def _broadcast(event):
 # A plate is registered once when it first appears, and again only after it has
 # been missing for ABSENT_FRAMES consecutive checks (≈10s at the defaults).
 class _PlateState:
-    __slots__ = ('status', 'absent_count', 'conf', 'last_seen')
+    __slots__ = ('absent_count', 'conf', 'last_seen', 'status')
 
     def __init__(self, conf):
         self.status = 'present'
