@@ -6,6 +6,6 @@
 flask>=3.0,<4.0
 waitress>=3.0,<4.0
 numpy>=1.26
-pillow>=10.0
+pillow>=12.3.0
 opencv-python-headless>=4.8,<5.0
 ruff>=0.6,<1.0
