@@ -2,8 +2,29 @@ services:
   app:
     build: .
     container_name: persian-plates-app
+    restart: unless-stopped
     ports:
       - "5000:5000"
+    environment:
+      # See README for the full list.
+      PLATE_LOG_LEVEL: INFO
+      PLATE_DB: /data/traffic.db
+      # Cache the ~50MB hezar OCR download between container restarts.
+      HF_HOME: /cache/huggingface
     volumes:
-      - ./:/app
-    command: python app.py
+      # Persist the DB and the model cache only. The old config bind-mounted the
+      # whole project over /app, which shadowed the image's installed code.
+      - plate-data:/data
+      - plate-cache:/cache
+    healthcheck:
+      # /health returns 503 until both models finish loading.
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=5).status==200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      start_period: 300s
+      retries: 3
+
+volumes:
+  plate-data:
+  plate-cache:
