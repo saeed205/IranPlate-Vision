@@ -6,7 +6,14 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
-### ⚠️ Breaking
+Nothing yet.
+
+## [1.1.0] - 2026-08-19
+
+### ⚠️ Upgrade notes
+
+The public HTTP API stays backward compatible, so this is a minor release. One
+thing does change on disk:
 
 - Plates are now stored and compared in a single canonical form, `24ن144-66`.
   Existing `vehicles` and `access_log` rows are migrated automatically on first
@@ -86,5 +93,6 @@ All notable changes to this project are documented here. Format based on
   lookup, RTSP camera management, access log, allow/block lists, and a bilingual
   (EN/FA) dashboard.
 
-[Unreleased]: https://github.com/saeed205/IranPlate-Vision/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/saeed205/IranPlate-Vision/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/saeed205/IranPlate-Vision/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/saeed205/IranPlate-Vision/releases/tag/v1.0.0
