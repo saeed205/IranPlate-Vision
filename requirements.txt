@@ -1,6 +1,6 @@
 # Lower bounds are pinned so a fresh install cannot silently pick up an
 # incompatible major release. Loosen them if you need to.
-flask>=3.0,<4.0
+flask>=3.1.3,<4.0
 waitress>=3.0,<4.0        # production WSGI server (Flask's own is dev-only)
 ultralytics>=8.2,<9.0
 opencv-python>=4.8,<5.0
