@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>IranPlate Vision - Camera Management | مدیریت دوربین‌ها</title>
+<!-- Loaded before the inline script: __tPipe() is called during the first render. -->
+<script src="/static/i18n.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -11,23 +13,26 @@
   --accent:#6c63ff;--accent2:#4ade80;--danger:#f43f5e;--warn:#f59e0b;
   --text:#e8e6f0;--muted:#7c7a8a;--font:'IY',Tahoma,sans-serif;
 }
-@font-face{font-family:'IY';src:url('/fonts/iranyekanweb_bold.woff') format('woff');font-weight:700}
-@font-face{font-family:'IY';src:url('/fonts/iranyekanweb_medium.woff') format('woff');font-weight:400}
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font)}
+@font-face{font-family:'IY';src:url('/fonts/iranyekanweb_bold.woff') format('woff');font-weight:700;font-display:swap}
+@font-face{font-family:'IY';src:url('/fonts/iranyekanweb_medium.woff') format('woff');font-weight:400;font-display:swap}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font)}
 a{color:inherit;text-decoration:none}
 
 /* ── layout ── */
 .topbar{
   display:flex;align-items:center;gap:12px;padding:14px 20px;
   background:var(--surface);border-bottom:1px solid var(--border);
-  position:sticky;top:0;z-index:100;
+  position:sticky;top:0;z-index:100;flex-wrap:wrap;
 }
 .lang-toggle{
-  margin-right:8px;
   border:1px solid var(--border);background:var(--card);color:var(--text);
-  border-radius:8px;padding:5px 10px;cursor:pointer;font-weight:700
+  border-radius:8px;padding:5px 10px;cursor:pointer;font-weight:700;font-family:var(--font)
 }
 .topbar h1{font-size:.95rem;font-weight:700}
+/* Logical property: works in both RTL and LTR, unlike margin-right:auto. */
+#connStatus{margin-inline-start:auto;font-size:.75rem;color:var(--muted)}
+#connStatus.ok{color:var(--accent2)}
+#connStatus.bad{color:var(--danger)}
 .back-btn{
   display:flex;align-items:center;gap:6px;padding:6px 12px;
   background:var(--card);border:1px solid var(--border);border-radius:8px;
@@ -37,13 +42,15 @@ a{color:inherit;text-decoration:none}
 
 .layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px;max-width:1400px;margin:0 auto}
 @media(max-width:900px){.layout{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:16px}
 
 .panel{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
 .panel-head{
-  display:flex;align-items:center;justify-content:space-between;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
   padding:14px 16px;border-bottom:1px solid var(--border);font-size:.85rem;font-weight:700;
 }
 .panel-body{padding:14px 16px}
+.muted-note{color:var(--muted);font-size:.8rem}
 
 /* ── buttons ── */
 .btn{
@@ -56,6 +63,7 @@ a{color:inherit;text-decoration:none}
 .btn-danger{background:var(--danger);color:#fff}
 .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
 .btn:hover{opacity:.85}
+.btn:disabled{opacity:.5;cursor:default}
 .btn-sm{padding:5px 10px;font-size:.75rem;border-radius:7px}
 
 /* ── forms ── */
@@ -67,7 +75,9 @@ a{color:inherit;text-decoration:none}
   font-size:.82rem;outline:none;transition:border-color .15s;
 }
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent)}
+.field .hint{font-size:.68rem;color:var(--muted);margin-top:4px}
 .row-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:480px){.row-fields{grid-template-columns:1fr}}
 
 /* ── camera cards ── */
 .cam-list{display:flex;flex-direction:column;gap:10px;max-height:420px;overflow-y:auto}
@@ -75,17 +85,19 @@ a{color:inherit;text-decoration:none}
 .cam-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
 .cam-card{
   background:var(--surface);border:1px solid var(--border);border-radius:11px;
-  padding:12px 14px;display:flex;align-items:center;gap:12px;
+  padding:12px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
 }
 .cam-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--muted)}
 .cam-dot.on{background:var(--accent2);box-shadow:0 0 6px var(--accent2)}
+.cam-dot.connecting{background:var(--warn);box-shadow:0 0 6px var(--warn);animation:pulse 1.2s infinite}
 .cam-dot.off{background:var(--muted)}
-.cam-info{flex:1;min-width:0}
+.cam-dot.err{background:var(--danger);box-shadow:0 0 6px var(--danger)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.cam-info{flex:1;min-width:140px}
 .cam-name{font-size:.84rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cam-url{font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:ltr;text-align:right}
-.cam-role{
-  font-size:.68rem;padding:2px 7px;border-radius:5px;font-weight:700;
-}
+.cam-url{font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:ltr;text-align:start}
+.cam-err-line{font-size:.68rem;color:var(--danger);margin-top:2px}
+.cam-role{font-size:.68rem;padding:2px 7px;border-radius:5px;font-weight:700}
 .role-entry{background:#1e3a5f;color:#60b4ff}
 .role-exit{background:#3b1f1f;color:#ff8080}
 .role-monitor{background:#2a2a1e;color:#ffd060}
@@ -99,28 +111,32 @@ a{color:inherit;text-decoration:none}
 }
 .live-tile img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#000}
 .live-label{
-  position:absolute;bottom:0;left:0;right:0;padding:6px 10px;
+  position:absolute;bottom:0;inset-inline:0;padding:6px 10px;
   background:linear-gradient(transparent,rgba(0,0,0,.75));
-  font-size:.75rem;display:flex;justify-content:space-between;align-items:center;
+  font-size:.75rem;display:flex;justify-content:space-between;align-items:center;gap:6px;
 }
-.live-badge{font-size:.68rem;padding:2px 6px;border-radius:5px;background:rgba(0,0,0,.5)}
+.live-label .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.live-badge{font-size:.68rem;padding:2px 6px;border-radius:5px;background:rgba(0,0,0,.5);flex-shrink:0}
 .no-signal{
   aspect-ratio:16/9;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:8px;color:var(--muted);font-size:.8rem;background:#000;
+  text-align:center;padding:8px;
 }
 
 /* ── log table ── */
-.log-wrap{max-height:360px;overflow-y:auto}
-.log-wrap::-webkit-scrollbar{width:4px}
+.log-wrap{max-height:360px;overflow:auto}
+.log-wrap::-webkit-scrollbar{width:4px;height:4px}
 .log-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
 table{width:100%;border-collapse:collapse;font-size:.78rem}
-th{color:var(--muted);font-weight:400;padding:6px 8px;text-align:right;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card)}
+th{color:var(--muted);font-weight:400;padding:6px 8px;text-align:start;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card);white-space:nowrap}
 td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.04)}
 tr:hover td{background:rgba(255,255,255,.03)}
 .badge-white{background:#14532d;color:#4ade80;padding:2px 6px;border-radius:5px;font-size:.68rem}
 .badge-black{background:#4c0519;color:#f87171;padding:2px 6px;border-radius:5px;font-size:.68rem}
 .badge-none{background:var(--border);color:var(--muted);padding:2px 6px;border-radius:5px;font-size:.68rem}
 .plate-cell{font-family:'Courier New',monospace;direction:ltr;unicode-bidi:isolate;display:inline-block}
+.plate-cell.clickable{cursor:zoom-in;text-decoration:underline dotted rgba(255,255,255,.25)}
+.log-empty{color:var(--muted);font-size:.8rem;padding:14px 16px}
 
 /* ── vehicle list ── */
 .veh-list{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto}
@@ -128,10 +144,10 @@ tr:hover td{background:rgba(255,255,255,.03)}
 .veh-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
 .veh-row{
   background:var(--surface);border:1px solid var(--border);border-radius:9px;
-  padding:10px 12px;display:flex;align-items:center;gap:10px;
+  padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
 }
 .veh-plate{font-family:'Courier New',monospace;font-size:.82rem;direction:ltr;unicode-bidi:isolate;flex-shrink:0}
-.veh-label{flex:1;font-size:.78rem;color:var(--muted)}
+.veh-label{flex:1;min-width:60px;font-size:.78rem;color:var(--muted)}
 .veh-note{font-size:.72rem;color:var(--muted)}
 
 /* ── toast ── */
@@ -139,9 +155,10 @@ tr:hover td{background:rgba(255,255,255,.03)}
   position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);
   background:var(--card);border:1px solid var(--border);border-radius:10px;
   padding:10px 20px;font-size:.82rem;transition:transform .25s,opacity .25s;
-  opacity:0;pointer-events:none;z-index:999;
+  opacity:0;pointer-events:none;z-index:999;max-width:90vw;text-align:center;
 }
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+#toast.err{border-color:var(--danger);color:#ffb3bd}
 
 /* ── modal ── */
 .overlay{
@@ -151,17 +168,19 @@ tr:hover td{background:rgba(255,255,255,.03)}
 .overlay.hidden{display:none}
 .modal{
   background:var(--card);border:1px solid var(--border);border-radius:16px;
-  padding:20px;width:100%;max-width:440px;
+  padding:20px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;
 }
 .modal h2{font-size:.95rem;margin-bottom:16px}
 .modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+#cropModal .modal{max-width:520px;text-align:center}
+#cropImg{max-width:100%;border-radius:10px;border:1px solid var(--border);background:#000}
 
 /* ── tabs ── */
-.tabs{display:flex;gap:6px;padding:14px 16px 0;border-bottom:1px solid var(--border)}
+.tabs{display:flex;gap:6px;padding:14px 16px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .tab{
   padding:8px 14px;font-size:.8rem;font-weight:700;border-radius:8px 8px 0 0;
   cursor:pointer;color:var(--muted);border:1px solid transparent;border-bottom:none;
-  transition:color .15s;
+  transition:color .15s;background:none;font-family:var(--font);
 }
 .tab.active{color:var(--text);background:var(--card);border-color:var(--border)}
 .tab-content{display:none;padding:14px 16px}
@@ -180,22 +199,22 @@ tr:hover td{background:rgba(255,255,255,.03)}
   <a href="/" class="back-btn">← Menu | منو</a>
   <h1>IranPlate Vision - RTSP Camera Management | مدیریت دوربین‌های RTSP</h1>
   <button id="langToggle" class="lang-toggle" title="Switch language | تغییر زبان">EN</button>
-  <span id="connStatus" style="margin-right:auto;font-size:.75rem;color:var(--muted)">Connecting... | در حال اتصال...</span>
+  <span id="connStatus">Connecting... | در حال اتصال...</span>
 </div>
 
 <div class="layout">
 
   <!-- ستون چپ: دوربین‌ها + لایو -->
-  <div style="display:flex;flex-direction:column;gap:16px">
+  <div class="col">
 
     <!-- لیست دوربین‌ها -->
     <div class="panel">
       <div class="panel-head">
         Cameras | دوربین‌ها
-        <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ Add | افزودن</button>
+        <button class="btn btn-primary btn-sm" data-action="camera-add">+ Add | افزودن</button>
       </div>
       <div class="panel-body">
-        <div class="cam-list" id="camList"><p style="color:var(--muted);font-size:.8rem">No cameras registered | هیچ دوربینی ثبت نشده</p></div>
+        <div class="cam-list" id="camList"><p class="muted-note">Loading... | در حال بارگذاری...</p></div>
       </div>
     </div>
 
@@ -203,11 +222,11 @@ tr:hover td{background:rgba(255,255,255,.03)}
     <div class="panel">
       <div class="panel-head">
         Live View | تصویر زنده
-        <span style="font-size:.75rem;color:var(--muted)" id="snapAge"></span>
+        <span class="muted-note" id="snapAge"></span>
       </div>
       <div class="panel-body" style="padding:12px">
         <div class="live-grid" id="liveGrid">
-          <p style="color:var(--muted);font-size:.8rem">No active cameras | دوربینی فعال نیست</p>
+          <p class="muted-note">No active cameras | دوربینی فعال نیست</p>
         </div>
       </div>
     </div>
@@ -215,41 +234,49 @@ tr:hover td{background:rgba(255,255,255,.03)}
   </div>
 
   <!-- ستون راست: لاگ + وایت‌لیست -->
-  <div style="display:flex;flex-direction:column;gap:16px">
+  <div class="col">
 
     <!-- لاگ تردد -->
     <div class="panel">
       <div class="panel-head">
         Access Log | لاگ تردد
         <div style="display:flex;gap:6px">
-          <button class="btn btn-ghost btn-sm" onclick="loadLog()">Refresh | بروزرسانی</button>
-          <button class="btn btn-danger btn-sm" onclick="clearLog()">Clear | پاک کردن</button>
+          <button class="btn btn-ghost btn-sm" data-action="log-refresh">Refresh | بروزرسانی</button>
+          <button class="btn btn-danger btn-sm" data-action="log-clear">Clear | پاک کردن</button>
         </div>
       </div>
       <div class="log-wrap">
         <table>
-          <thead><tr><th>Plate | پلاک</th><th>Camera | دوربین</th><th>Role | نقش</th><th>Status | وضعیت</th><th>Time | زمان</th></tr></thead>
+          <thead><tr>
+            <th>Plate | پلاک</th><th>Camera | دوربین</th><th>Role | نقش</th>
+            <th>Conf. | اطمینان</th><th>Status | وضعیت</th><th>Time | زمان</th>
+          </tr></thead>
           <tbody id="logBody"></tbody>
         </table>
+        <p class="log-empty" id="logEmpty">No records yet | رکوردی ثبت نشده</p>
       </div>
     </div>
 
     <!-- وایت‌لیست / بلک‌لیست -->
     <div class="panel">
       <div class="tabs">
-        <div class="tab active" onclick="switchTab('white')">Allowed ✅ | مجاز ✅</div>
-        <div class="tab" onclick="switchTab('black')">Blocked ❌ | غیرمجاز ❌</div>
-        <div class="tab" onclick="switchTab('add')">Add + | افزودن +</div>
+        <button class="tab active" data-tab="white">Allowed ✅ | مجاز ✅</button>
+        <button class="tab" data-tab="black">Blocked ❌ | غیرمجاز ❌</button>
+        <button class="tab" data-tab="add">Add + | افزودن +</button>
       </div>
       <div id="tab-white" class="tab-content active">
-        <div class="veh-list" id="vehWhite"><p style="color:var(--muted);font-size:.8rem">Empty | خالی</p></div>
+        <div class="veh-list" id="vehWhite"><p class="muted-note">Empty | خالی</p></div>
       </div>
       <div id="tab-black" class="tab-content">
-        <div class="veh-list" id="vehBlack"><p style="color:var(--muted);font-size:.8rem">Empty | خالی</p></div>
+        <div class="veh-list" id="vehBlack"><p class="muted-note">Empty | خالی</p></div>
       </div>
       <div id="tab-add" class="tab-content">
         <div class="row-fields">
-          <div class="field"><label>Plate (Latin) | پلاک (لاتین)</label><input id="vPlate" placeholder="24ن144-66"></div>
+          <div class="field">
+            <label>Plate | پلاک</label>
+            <input id="vPlate" placeholder="24ن144-66" dir="ltr" style="text-align:start">
+            <div class="hint">Format: 2 digits, letter, 3 digits, 2 digits | قالب: ۲ رقم، حرف، ۳ رقم، ۲ رقم</div>
+          </div>
           <div class="field"><label>Label | برچسب</label><input id="vLabel" placeholder="e.g. CEO | مثلاً: مدیرعامل"></div>
         </div>
         <div class="row-fields">
@@ -262,7 +289,7 @@ tr:hover td{background:rgba(255,255,255,.03)}
           </div>
           <div class="field"><label>Note | یادداشت</label><input id="vNote" placeholder="Optional | اختیاری"></div>
         </div>
-        <button class="btn btn-primary" onclick="addVehicle()">Add Vehicle | افزودن خودرو</button>
+        <button class="btn btn-primary" data-action="vehicle-add">Add Vehicle | افزودن خودرو</button>
       </div>
     </div>
 
@@ -274,7 +301,11 @@ tr:hover td{background:rgba(255,255,255,.03)}
   <div class="modal">
     <h2 id="modalTitle">Add Camera | افزودن دوربین</h2>
     <div class="field"><label>Camera Name | نام دوربین</label><input id="mName" placeholder="Entry Camera 1 | دوربین ورودی ۱"></div>
-    <div class="field"><label>RTSP URL | آدرس RTSP</label><input id="mUrl" placeholder="rtsp://admin:pass@192.168.1.100:554/stream" dir="ltr" style="text-align:left"></div>
+    <div class="field">
+      <label>RTSP URL | آدرس RTSP</label>
+      <input id="mUrl" placeholder="rtsp://admin:pass@192.168.1.100:554/stream" dir="ltr" style="text-align:start">
+      <div class="hint" id="mUrlHint"></div>
+    </div>
     <div class="field">
       <label>Role | نقش</label>
       <select id="mRole">
@@ -284,8 +315,19 @@ tr:hover td{background:rgba(255,255,255,.03)}
       </select>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel | لغو</button>
-      <button class="btn btn-primary" onclick="saveCamera()">Save | ذخیره</button>
+      <button class="btn btn-ghost" data-action="modal-close">Cancel | لغو</button>
+      <button class="btn btn-primary" id="saveCamBtn" data-action="camera-save">Save | ذخیره</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal نمایش crop پلاک -->
+<div class="overlay hidden" id="cropModal">
+  <div class="modal">
+    <h2 id="cropTitle">Plate Snapshot | تصویر پلاک</h2>
+    <img id="cropImg" alt="">
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-action="crop-close">Close | بستن</button>
     </div>
   </div>
 </div>
@@ -293,290 +335,504 @@ tr:hover td{background:rgba(255,255,255,.03)}
 <div id="toast"></div>
 
 <script>
+'use strict';
+const esc = window.__esc, t = window.__tPipe;
+
 const ROLE_LABEL = {entry:'Entry | ورودی', exit:'Exit | خروجی', monitor:'Monitor | مانیتور'};
 const ROLE_CLASS = {entry:'role-entry', exit:'role-exit', monitor:'role-monitor'};
-let cameras = [];
-let editingId = null;
-let snapTimers = {};
+const MAX_LOG_ROWS = 300;
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
-function toast(msg, dur=2500){
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  clearTimeout(t._t);
-  t._t = setTimeout(()=>t.classList.remove('show'), dur);
+let cameras   = [];
+let vehicles  = [];
+let logRows   = [];
+let editingId = null;
+
+const $ = id => document.getElementById(id);
+
+/* ── Toast ─────────────────────────────────────────────────────────────────── */
+let toastTimer = null;
+function toast(msg, opts){
+  opts = opts || {};
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.toggle('err', !!opts.error);
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('show'), opts.duration || 2500);
 }
 
-// ── SSE ───────────────────────────────────────────────────────────────────────
-let es;
+/* ── fetch wrapper ──────────────────────────────────────────────────────────
+   Every call used to be a bare fetch with no error handling, so a server error
+   surfaced only as an unhandled promise rejection in the console.
+── */
+async function api(path, opts){
+  opts = opts || {};
+  const init = {method: opts.method || 'GET'};
+  if(opts.body !== undefined){
+    init.headers = {'Content-Type':'application/json'};
+    init.body = JSON.stringify(opts.body);
+  }
+  let res;
+  try{
+    res = await fetch(path, init);
+  }catch(e){
+    throw new Error(t('Network error | خطای شبکه'));
+  }
+  let data = null;
+  try{ data = await res.json(); }catch(e){ /* empty or non-JSON body */ }
+  if(!res.ok){
+    const err = new Error((data && data.error) || t('Server error | خطای سرور'));
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+/* Run an action and report failures instead of dying silently. */
+function guard(fn){
+  return Promise.resolve().then(fn).catch(e=>{
+    console.error(e);
+    toast(e.message || t('Unexpected error | خطای غیرمنتظره'), {error:true, duration:4000});
+  });
+}
+
+/* ── SSE ────────────────────────────────────────────────────────────────────
+   The old version called connectSSE() from onerror without closing the dead
+   EventSource — and EventSource already reconnects on its own, so every blip
+   multiplied the number of open streams.
+── */
+let es = null;
+let sseRetry = null;
+
+function setConn(text, cls){
+  const el = $('connStatus');
+  el.textContent = text;
+  el.className = cls || '';
+}
+
 function connectSSE(){
+  clearTimeout(sseRetry);
+  if(es){ es.close(); es = null; }
+
   es = new EventSource('/api/events');
-  es.onopen = ()=>{ document.getElementById('connStatus').textContent=__tPipe('Connected ✓ | متصل ✓'); };
-  es.onerror = ()=>{ document.getElementById('connStatus').textContent=__tPipe('Disconnected - reconnecting... | قطع - تلاش مجدد...'); setTimeout(connectSSE,3000); };
-  es.onmessage = e=>{
-    try{
-      const d = JSON.parse(e.data);
-      if(d.type==='detection') onDetection(d);
-    }catch{}
+  es.onopen = ()=> setConn(t('Connected ✓ | متصل ✓'), 'ok');
+  es.onmessage = ev=>{
+    let d;
+    try{ d = JSON.parse(ev.data); }catch(e){ return; }
+    if(d.type === 'detection')      onDetection(d);
+    else if(d.type === 'camera_status') onCameraStatus(d);
+  };
+  es.onerror = ()=>{
+    setConn(t('Disconnected - reconnecting... | قطع - تلاش مجدد...'), 'bad');
+    // Close first so the browser's own retry cannot stack with ours.
+    if(es){ es.close(); es = null; }
+    clearTimeout(sseRetry);
+    sseRetry = setTimeout(connectSSE, 3000);
   };
 }
 
 function onDetection(d){
-  prependLog({
-    plate: d.plate, camera_name: d.camera_name, role: d.role,
-    confidence: d.conf, ts: d.ts, list: d.list
-  }, true);
-  if(d.list==='black'){
-    toast(`⛔ ${__tPipe('Blocked plate | پلاک غیرمجاز')}: ${d.plate}`, 5000);
+  logRows.unshift({
+    id: d.id, plate: d.plate, camera_name: d.camera_name, role: d.role,
+    confidence: d.conf, ts: d.ts, list: d.list, label: d.label,
+    has_crop: d.has_crop, _flash: true
+  });
+  if(logRows.length > MAX_LOG_ROWS) logRows.length = MAX_LOG_ROWS;
+  renderLog();
+  if(d.list === 'black'){
+    toast('⛔ ' + t('Blocked plate | پلاک غیرمجاز') + ': ' + d.plate, {error:true, duration:5000});
   }
 }
 
-// ── Cameras ───────────────────────────────────────────────────────────────────
+function onCameraStatus(d){
+  const cam = cameras.find(c=>c.id === d.camera_id);
+  if(!cam) return;
+  cam.running    = d.running;
+  cam.connected  = d.connected;
+  cam.connecting = d.connecting;
+  cam.last_error = d.last_error || '';
+  renderCameras();
+}
+
+/* ── Cameras ────────────────────────────────────────────────────────────────*/
 async function loadCameras(){
-  const r = await fetch('/api/cameras');
-  cameras = await r.json();
+  cameras = await api('/api/cameras');
   renderCameras();
   renderLiveGrid();
 }
 
+function camDotClass(c){
+  if(!c.enabled)   return 'off';
+  if(c.connected)  return 'on';
+  if(c.connecting) return 'connecting';
+  if(c.last_error) return 'err';
+  return 'connecting';
+}
+
 function renderCameras(){
-  const el = document.getElementById('camList');
+  const el = $('camList');
   if(!cameras.length){
-    el.innerHTML='<p style="color:var(--muted);font-size:.8rem">'+__tPipe('No cameras registered | هیچ دوربینی ثبت نشده')+'</p>';
+    el.innerHTML = '<p class="muted-note">' + t('No cameras registered | هیچ دوربینی ثبت نشده') + '</p>';
     return;
   }
   el.innerHTML = cameras.map(c=>`
     <div class="cam-card">
-      <div class="cam-dot ${c.enabled && c.running ? 'on':'off'}"></div>
+      <div class="cam-dot ${camDotClass(c)}" title="${esc(c.last_error || '')}"></div>
       <div class="cam-info">
-        <div class="cam-name">${c.name}</div>
-        <div class="cam-url">${c.url}</div>
+        <div class="cam-name">${esc(c.name)}</div>
+        <div class="cam-url">${esc(c.url)}</div>
+        ${c.enabled && c.last_error ? `<div class="cam-err-line">${esc(t(c.last_error))}</div>` : ''}
       </div>
-      <span class="cam-role ${ROLE_CLASS[c.role]}">${__tPipe(ROLE_LABEL[c.role])}</span>
+      <span class="cam-role ${ROLE_CLASS[c.role] || 'role-monitor'}">${esc(t(ROLE_LABEL[c.role] || c.role))}</span>
       <div class="cam-actions">
-        <button class="btn btn-ghost btn-sm" onclick="editCamera(${c.id})">${__tPipe('Edit | ویرایش')}</button>
-        <button class="btn btn-ghost btn-sm" onclick="toggleCamera(${c.id},${c.enabled})">${c.enabled?__tPipe('Disable | غیرفعال'):__tPipe('Enable | فعال')}</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteCamera(${c.id})">${__tPipe('Delete | حذف')}</button>
+        <button class="btn btn-ghost btn-sm" data-action="camera-edit" data-id="${c.id}">${esc(t('Edit | ویرایش'))}</button>
+        <button class="btn btn-ghost btn-sm" data-action="camera-toggle" data-id="${c.id}">${esc(t(c.enabled ? 'Disable | غیرفعال' : 'Enable | فعال'))}</button>
+        <button class="btn btn-danger btn-sm" data-action="camera-delete" data-id="${c.id}">${esc(t('Delete | حذف'))}</button>
       </div>
     </div>
   `).join('');
 }
 
-function renderLiveGrid(){
-  const el = document.getElementById('liveGrid');
+/* ── Live view ──────────────────────────────────────────────────────────────
+   loadCameras() runs every 10s and used to rebuild the whole grid each time,
+   which reset every <img> and made the preview blink. The DOM is now rebuilt
+   only when the visible set of cameras actually changes.
+── */
+const live = {
+  signature: null,
+  timers: {},
+  inflight: {},
+  ages: {},
+};
+
+function liveSignature(list){
+  return list.map(c=>c.id + ':' + c.name + ':' + c.role).join('|');
+}
+
+function renderLiveGrid(force){
   const active = cameras.filter(c=>c.enabled);
+  const sig = liveSignature(active);
+  if(!force && sig === live.signature) return;
+  live.signature = sig;
+
+  stopLive();
+  const el = $('liveGrid');
   if(!active.length){
-    el.innerHTML='<p style="color:var(--muted);font-size:.8rem">'+__tPipe('No active cameras | دوربینی فعال نیست')+'</p>';
+    el.innerHTML = '<p class="muted-note">' + t('No active cameras | دوربینی فعال نیست') + '</p>';
+    updateSnapAge();
     return;
   }
+
   el.innerHTML = active.map(c=>`
     <div class="live-tile">
-      <img id="snap-${c.id}" src="" onerror="this.style.display='none'" style="display:none">
+      <img id="snap-${c.id}" alt="${esc(c.name)}" style="display:none">
       <div class="no-signal" id="nosig-${c.id}">
         <span style="font-size:1.4rem">📷</span>
-        <span>${__tPipe('Connecting... | در حال اتصال...')}</span>
+        <span>${esc(t('Connecting... | در حال اتصال...'))}</span>
       </div>
       <div class="live-label">
-        <span>${c.name}</span>
-        <span class="live-badge cam-role ${ROLE_CLASS[c.role]}">${__tPipe(ROLE_LABEL[c.role])}</span>
+        <span class="nm">${esc(c.name)}</span>
+        <span class="live-badge cam-role ${ROLE_CLASS[c.role] || 'role-monitor'}">${esc(t(ROLE_LABEL[c.role] || c.role))}</span>
       </div>
     </div>
   `).join('');
 
-  // Clear old timers
-  Object.values(snapTimers).forEach(clearInterval);
-  snapTimers = {};
+  active.forEach(c=>scheduleSnap(c.id, 0));
+}
 
-  active.forEach(c=>{
-    snapTimers[c.id] = setInterval(()=>fetchSnap(c.id), 1500);
-    fetchSnap(c.id);
-  });
+function stopLive(){
+  Object.values(live.timers).forEach(clearTimeout);
+  live.timers = {};
+  live.inflight = {};
+  live.ages = {};
+}
+
+/* Recursive setTimeout instead of setInterval: a slow server can no longer
+   queue up overlapping snapshot requests. */
+function scheduleSnap(cid, delay){
+  clearTimeout(live.timers[cid]);
+  live.timers[cid] = setTimeout(()=>fetchSnap(cid), delay);
 }
 
 async function fetchSnap(cid){
+  if(document.hidden){                 // don't poll a background tab
+    scheduleSnap(cid, 2000);
+    return;
+  }
+  if(live.inflight[cid]){
+    scheduleSnap(cid, 1500);
+    return;
+  }
+  live.inflight[cid] = true;
   try{
-    const r = await fetch(`/api/cameras/${cid}/snapshot`);
-    if(!r.ok) return;
-    const d = await r.json();
-    const img = document.getElementById(`snap-${cid}`);
-    const ns  = document.getElementById(`nosig-${cid}`);
-    if(img){
-      img.src = 'data:image/jpeg;base64,'+d.image;
-      img.style.display='block';
-      if(ns) ns.style.display='none';
+    const res = await fetch('/api/cameras/' + cid + '/snapshot');
+    if(res.ok){
+      const d = await res.json();
+      const img = $('snap-' + cid), ns = $('nosig-' + cid);
+      if(img && d.image){
+        img.src = 'data:image/jpeg;base64,' + d.image;
+        img.style.display = 'block';
+        if(ns) ns.style.display = 'none';
+        live.ages[cid] = d.age;
+      }
+    }else{
+      const ns = $('nosig-' + cid);
+      if(ns) ns.style.display = 'flex';
+      delete live.ages[cid];
     }
-  }catch{}
+  }catch(e){ /* transient — the next tick retries */ }
+  finally{
+    delete live.inflight[cid];
+    updateSnapAge();
+    scheduleSnap(cid, 1500);
+  }
 }
 
+/* The header had an empty #snapAge span that nothing ever wrote to. */
+function updateSnapAge(){
+  const ages = Object.values(live.ages).filter(a=>typeof a === 'number');
+  const el = $('snapAge');
+  if(!ages.length){ el.textContent = ''; return; }
+  const newest = Math.min.apply(null, ages);
+  el.textContent = t('Updated | بروزرسانی') + ': ' + newest.toFixed(1) + t('s | ث');
+}
+
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden) Object.keys(live.timers).forEach(cid=>scheduleSnap(cid, 0));
+});
+
+/* ── Camera modal ───────────────────────────────────────────────────────────*/
 function openAddModal(){
   editingId = null;
-  document.getElementById('modalTitle').textContent=__tPipe('Add Camera | افزودن دوربین');
-  document.getElementById('mName').value='';
-  document.getElementById('mUrl').value='';
-  document.getElementById('mRole').value='entry';
-  document.getElementById('camModal').classList.remove('hidden');
+  $('modalTitle').textContent = t('Add Camera | افزودن دوربین');
+  $('mName').value = '';
+  $('mUrl').value = '';
+  $('mRole').value = 'entry';
+  $('mUrlHint').textContent = '';
+  $('camModal').classList.remove('hidden');
+  $('mName').focus();
 }
+
 function editCamera(id){
-  const c = cameras.find(x=>x.id===id);
+  const c = cameras.find(x=>x.id === id);
   if(!c) return;
   editingId = id;
-  document.getElementById('modalTitle').textContent=__tPipe('Edit Camera | ویرایش دوربین');
-  document.getElementById('mName').value=c.name;
-  document.getElementById('mUrl').value=c.url;
-  document.getElementById('mRole').value=c.role;
-  document.getElementById('camModal').classList.remove('hidden');
+  $('modalTitle').textContent = t('Edit Camera | ویرایش دوربین');
+  $('mName').value = c.name;
+  $('mUrl').value  = c.url;   // masked; sending it back means "unchanged"
+  $('mRole').value = c.role;
+  $('mUrlHint').textContent = c.has_credentials
+    ? t('Password is hidden. Leave as-is to keep it. | رمز مخفی است. برای حفظ آن تغییرش ندهید.')
+    : '';
+  $('camModal').classList.remove('hidden');
+  $('mName').focus();
 }
-function closeModal(){ document.getElementById('camModal').classList.add('hidden'); }
+
+function closeModal(){ $('camModal').classList.add('hidden'); }
 
 async function saveCamera(){
-  const name = document.getElementById('mName').value.trim();
-  const url  = document.getElementById('mUrl').value.trim();
-  const role = document.getElementById('mRole').value;
-  if(!name||!url){ toast(__tPipe('Name and URL are required | نام و آدرس الزامی هستند')); return; }
+  const name = $('mName').value.trim();
+  const url  = $('mUrl').value.trim();
+  const role = $('mRole').value;
+  if(!name || !url){ toast(t('Name and URL are required | نام و آدرس الزامی هستند'), {error:true}); return; }
 
-  if(editingId){
-    const c = cameras.find(x=>x.id===editingId);
-    await fetch(`/api/cameras/${editingId}`,{
-      method:'PUT',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name,url,role,enabled:c.enabled})
-    });
-    toast(__tPipe('Camera updated | دوربین ویرایش شد'));
-  } else {
-    await fetch('/api/cameras',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name,url,role})
-    });
-    toast(__tPipe('Camera added | دوربین اضافه شد'));
+  const btn = $('saveCamBtn');
+  btn.disabled = true;
+  try{
+    if(editingId){
+      const current = cameras.find(x=>x.id === editingId) || {};
+      await api('/api/cameras/' + editingId, {
+        method:'PUT', body:{name, url, role, enabled: current.enabled !== false}
+      });
+      toast(t('Camera updated | دوربین ویرایش شد'));
+    }else{
+      await api('/api/cameras', {method:'POST', body:{name, url, role}});
+      toast(t('Camera added | دوربین اضافه شد'));
+    }
+    closeModal();
+    await loadCameras();
+  }finally{
+    btn.disabled = false;
   }
-  closeModal();
-  loadCameras();
 }
 
-async function toggleCamera(id, enabled){
-  await fetch(`/api/cameras/${id}/toggle`,{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({enabled:!enabled})
-  });
-  loadCameras();
+async function toggleCamera(id){
+  const c = cameras.find(x=>x.id === id);
+  if(!c) return;
+  await api('/api/cameras/' + id + '/toggle', {method:'POST', body:{enabled: !c.enabled}});
+  await loadCameras();
 }
 
 async function deleteCamera(id){
-  if(!confirm(__tPipe('Delete this camera? | دوربین حذف شود؟'))) return;
-  await fetch(`/api/cameras/${id}`,{method:'DELETE'});
-  toast(__tPipe('Camera deleted | دوربین حذف شد'));
-  loadCameras();
+  if(!confirm(t('Delete this camera? | دوربین حذف شود؟'))) return;
+  await api('/api/cameras/' + id, {method:'DELETE'});
+  toast(t('Camera deleted | دوربین حذف شد'));
+  await loadCameras();
 }
 
-// ── Log ───────────────────────────────────────────────────────────────────────
-const MAX_LOG_ROWS = 300;
+/* ── Log ────────────────────────────────────────────────────────────────────*/
 async function loadLog(){
-  const r = await fetch('/api/log?limit=200');
-  const rows = await r.json();
-  const tbody = document.getElementById('logBody');
-  tbody.innerHTML = '';
-  rows.forEach(row => appendLogRow(tbody, row, false));
+  logRows = await api('/api/log?limit=200');
+  renderLog();
 }
 
-function prependLog(row, flash){
-  const tbody = document.getElementById('logBody');
-  const tr = buildLogRow(row, flash);
-  tbody.insertBefore(tr, tbody.firstChild);
-  while(tbody.children.length > MAX_LOG_ROWS) tbody.removeChild(tbody.lastChild);
+function listBadge(list){
+  if(list === 'white') return `<span class="badge-white">${esc(t('Allowed | مجاز'))}</span>`;
+  if(list === 'black') return `<span class="badge-black">${esc(t('Blocked | غیرمجاز'))}</span>`;
+  return '<span class="badge-none">—</span>';
 }
 
-function appendLogRow(tbody, row, flash){
-  tbody.appendChild(buildLogRow(row, flash));
-}
-
-function buildLogRow(row, flash){
-  const listBadge = row.list==='white'
-    ? `<span class="badge-white">${__tPipe('Allowed | مجاز')}</span>`
-    : row.list==='black'
-      ? `<span class="badge-black">${__tPipe('Blocked | غیرمجاز')}</span>`
-      : '<span class="badge-none">—</span>';
-  const tr = document.createElement('tr');
-  if(row.list==='black') tr.classList.add('alert-black');
-  if(flash) tr.classList.add('log-flash');
-  tr.innerHTML = `
-    <td><span class="plate-cell">${row.plate||'—'}</span></td>
-    <td>${row.camera_name||'—'}</td>
-    <td>${__tPipe(ROLE_LABEL[row.role]||row.role||'—')}</td>
-    <td>${listBadge}</td>
-    <td>${row.ts||'—'}</td>
-  `;
-  return tr;
+function renderLog(){
+  const tbody = $('logBody');
+  $('logEmpty').style.display = logRows.length ? 'none' : 'block';
+  tbody.innerHTML = logRows.map(row=>{
+    const conf = (typeof row.confidence === 'number')
+      ? Math.round(row.confidence * 100) + '%' : '—';
+    const cls = [row.list === 'black' ? 'alert-black' : '', row._flash ? 'log-flash' : '']
+      .filter(Boolean).join(' ');
+    const plateCls = row.has_crop ? 'plate-cell clickable' : 'plate-cell';
+    const cropAttrs = row.has_crop
+      ? ` data-action="show-crop" data-id="${row.id}" title="${esc(t('Show snapshot | نمایش تصویر'))}"`
+      : '';
+    return `<tr class="${cls}">
+      <td><span class="${plateCls}"${cropAttrs}>${esc(row.plate || '—')}</span></td>
+      <td>${esc(row.camera_name || '—')}</td>
+      <td>${esc(t(ROLE_LABEL[row.role] || row.role || '—'))}</td>
+      <td>${conf}</td>
+      <td>${listBadge(row.list)}</td>
+      <td>${esc(row.ts || '—')}</td>
+    </tr>`;
+  }).join('');
+  logRows.forEach(r=>{ delete r._flash; });   // flash only on first paint
 }
 
 async function clearLog(){
-  if(!confirm(__tPipe('Clear log? | لاگ پاک شود؟'))) return;
-  await fetch('/api/log',{method:'DELETE'});
-  document.getElementById('logBody').innerHTML='';
-  toast(__tPipe('Log cleared | لاگ پاک شد'));
+  if(!confirm(t('Clear log? | لاگ پاک شود؟'))) return;
+  await api('/api/log', {method:'DELETE'});
+  logRows = [];
+  renderLog();
+  toast(t('Log cleared | لاگ پاک شد'));
 }
 
-// ── Vehicles ──────────────────────────────────────────────────────────────────
-async function loadVehicles(){
-  const r = await fetch('/api/vehicles');
-  const list = await r.json();
-  const whites = list.filter(v=>v.list==='white');
-  const blacks = list.filter(v=>v.list==='black');
+/* Stored crops were written to the DB but nothing ever displayed them. */
+async function showCrop(id){
+  const d = await api('/api/log/' + id + '/crop');
+  $('cropImg').src = 'data:image/jpeg;base64,' + d.image;
+  $('cropModal').classList.remove('hidden');
+}
 
-  const renderList = (arr)=> arr.length
+/* ── Vehicles ───────────────────────────────────────────────────────────────*/
+async function loadVehicles(){
+  vehicles = await api('/api/vehicles');
+  renderVehicles();
+}
+
+function renderVehicles(){
+  const rows = arr => arr.length
     ? arr.map(v=>`
         <div class="veh-row">
-          <span class="veh-plate">${v.plate}</span>
-          <span class="veh-label">${v.label||''}</span>
-          <span class="veh-note">${v.note||''}</span>
-          <button class="btn btn-danger btn-sm" onclick="delVehicle('${v.plate}')">${__tPipe('Delete | حذف')}</button>
+          <span class="veh-plate">${esc(v.plate)}</span>
+          <span class="veh-label">${esc(v.label || '')}</span>
+          <span class="veh-note">${esc(v.note || '')}</span>
+          <button class="btn btn-danger btn-sm" data-action="vehicle-delete" data-plate="${esc(v.plate)}">${esc(t('Delete | حذف'))}</button>
         </div>`).join('')
-    : `<p style="color:var(--muted);font-size:.8rem">${__tPipe('Empty | خالی')}</p>`;
+    : `<p class="muted-note">${esc(t('Empty | خالی'))}</p>`;
 
-  document.getElementById('vehWhite').innerHTML = renderList(whites);
-  document.getElementById('vehBlack').innerHTML = renderList(blacks);
+  $('vehWhite').innerHTML = rows(vehicles.filter(v=>v.list === 'white'));
+  $('vehBlack').innerHTML = rows(vehicles.filter(v=>v.list === 'black'));
 }
 
 async function addVehicle(){
-  const plate = document.getElementById('vPlate').value.trim();
-  if(!plate){ toast(__tPipe('Plate is required | پلاک الزامی است')); return; }
-  await fetch('/api/vehicles',{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
+  const plate = $('vPlate').value.trim();
+  if(!plate){ toast(t('Plate is required | پلاک الزامی است'), {error:true}); return; }
+  await api('/api/vehicles', {
+    method:'POST',
+    body:{
       plate,
-      label: document.getElementById('vLabel').value.trim(),
-      list:  document.getElementById('vList').value,
-      note:  document.getElementById('vNote').value.trim(),
-    })
+      label: $('vLabel').value.trim(),
+      list:  $('vList').value,
+      note:  $('vNote').value.trim(),
+    }
   });
-  toast(__tPipe('Vehicle saved | خودرو ثبت شد'));
-  document.getElementById('vPlate').value='';
-  document.getElementById('vLabel').value='';
-  document.getElementById('vNote').value='';
-  loadVehicles();
+  toast(t('Vehicle saved | خودرو ثبت شد'));
+  $('vPlate').value = ''; $('vLabel').value = ''; $('vNote').value = '';
+  await Promise.all([loadVehicles(), loadLog()]);   // the log's Status column depends on the lists
 }
 
 async function delVehicle(plate){
-  await fetch(`/api/vehicles/${encodeURIComponent(plate)}`,{method:'DELETE'});
-  loadVehicles();
+  await api('/api/vehicles/' + encodeURIComponent(plate), {method:'DELETE'});
+  await Promise.all([loadVehicles(), loadLog()]);
 }
 
-// ── Tabs ──────────────────────────────────────────────────────────────────────
+/* ── Tabs ───────────────────────────────────────────────────────────────────*/
 function switchTab(name){
-  document.querySelectorAll('.tab').forEach((t,i)=>{
-    const names=['white','black','add'];
-    t.classList.toggle('active', names[i]===name);
+  document.querySelectorAll('.tab').forEach(el=>{
+    el.classList.toggle('active', el.dataset.tab === name);
   });
   document.querySelectorAll('.tab-content').forEach(el=>{
-    el.classList.toggle('active', el.id==='tab-'+name);
+    el.classList.toggle('active', el.id === 'tab-' + name);
   });
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+/* ── Delegated events ───────────────────────────────────────────────────────
+   Replaces the inline onclick="delVehicle('${v.plate}')" handlers, where any
+   quote in server data broke (or hijacked) the generated markup.
+── */
+document.addEventListener('click', ev=>{
+  const tab = ev.target.closest('.tab');
+  if(tab){ switchTab(tab.dataset.tab); return; }
+
+  const el = ev.target.closest('[data-action]');
+  if(!el) return;
+  const id = Number(el.dataset.id);
+
+  switch(el.dataset.action){
+    case 'camera-add':    openAddModal(); break;
+    case 'camera-edit':   editCamera(id); break;
+    case 'camera-toggle': guard(()=>toggleCamera(id)); break;
+    case 'camera-delete': guard(()=>deleteCamera(id)); break;
+    case 'camera-save':   guard(saveCamera); break;
+    case 'modal-close':   closeModal(); break;
+    case 'log-refresh':   guard(loadLog); break;
+    case 'log-clear':     guard(clearLog); break;
+    case 'show-crop':     guard(()=>showCrop(id)); break;
+    case 'crop-close':    $('cropModal').classList.add('hidden'); break;
+    case 'vehicle-add':   guard(addVehicle); break;
+    case 'vehicle-delete':guard(()=>delVehicle(el.dataset.plate)); break;
+  }
+});
+
+/* Backdrop click and Escape close the modals. */
+['camModal','cropModal'].forEach(mid=>{
+  $(mid).addEventListener('click', ev=>{
+    if(ev.target.id === mid) $(mid).classList.add('hidden');
+  });
+});
+document.addEventListener('keydown', ev=>{
+  if(ev.key === 'Escape'){
+    $('camModal').classList.add('hidden');
+    $('cropModal').classList.add('hidden');
+  }
+});
+$('vPlate').addEventListener('keydown', ev=>{ if(ev.key === 'Enter') guard(addVehicle); });
+
+/* Re-render JS-built lists when the language changes. */
+if(window.I18N && window.I18N.onChange){
+  window.I18N.onChange(()=>{
+    renderCameras();
+    renderLiveGrid(true);
+    renderLog();
+    renderVehicles();
+  });
+}
+
+/* ── Init ───────────────────────────────────────────────────────────────────*/
 connectSSE();
-loadCameras();
-loadLog();
-loadVehicles();
-setInterval(loadCameras, 10000);
+guard(loadCameras);
+guard(loadLog);
+guard(loadVehicles);
+setInterval(()=>{ if(!document.hidden) guard(loadCameras); }, 10000);
+window.addEventListener('beforeunload', ()=>{ if(es) es.close(); stopLive(); });
 </script>
-<script src="/static/i18n.js"></script>
 </body>
 </html>

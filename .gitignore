@@ -27,3 +27,11 @@ Thumbs.db
 build/
 dist/
 *.egg-info/
+
+# Local run artifacts
+.smoke.db
+.smoke.db-shm
+.smoke.db-wal
+.server.log
+.jscheck/
+.deepeval/

@@ -7,9 +7,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>IranPlate Vision - Scan | اسکن پلاک</title>
+<!-- Loaded before the inline script, which calls __tPipe(). -->
+<script src="/static/i18n.js"></script>
 <style>
-@font-face{font-family:'IY';src:url('/fonts/iranyekanweb_bold.woff') format('woff');font-weight:700}
-@font-face{font-family:'IY';src:url('/fonts/iranyekanweb_medium.woff') format('woff');font-weight:400}
+@font-face{font-family:'IY';src:url('/fonts/iranyekanweb_bold.woff') format('woff');font-weight:700;font-display:swap}
+@font-face{font-family:'IY';src:url('/fonts/iranyekanweb_medium.woff') format('woff');font-weight:400;font-display:swap}
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
@@ -37,10 +39,27 @@ body{
   padding-top:max(16px,env(safe-area-inset-top));
 }
 .lang-toggle{
-  position:fixed;top:12px;right:12px;z-index:150;
+  position:fixed;top:12px;inset-inline-end:12px;z-index:150;
   border:1px solid var(--border);background:var(--surface);color:var(--tx);
-  border-radius:10px;padding:6px 10px;cursor:pointer;font-weight:700
+  border-radius:10px;padding:6px 10px;cursor:pointer;font-weight:700;
+  font-family:inherit
 }
+
+/* ── Top nav ── */
+.topnav{
+  width:100%;max-width:960px;
+  display:flex;justify-content:flex-start;
+  padding:0 0 8px;
+  /* keep clear of the fixed language toggle in both directions */
+  padding-inline-end:56px;
+}
+.menu-link{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 14px;
+  background:var(--surface);border:1px solid var(--border);border-radius:9px;
+  font-size:.78rem;font-weight:700;color:var(--tx);text-decoration:none;
+  transition:border-color .15s;
+}
+.menu-link:hover{border-color:var(--border2)}
 
 /* ── Layout ── */
 .layout{
@@ -570,10 +589,8 @@ body{
 <body>
 <button id="langToggle" class="lang-toggle" title="Switch language | تغییر زبان">EN</button>
 
-<div style="display:flex;justify-content:flex-start;padding:8px 14px;background:var(--bg)">
-  <a href="/" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:var(--card);border:1px solid var(--border);border-radius:9px;font-size:.78rem;font-weight:700;color:var(--text);text-decoration:none">
-    ← Menu | منو
-  </a>
+<div class="topnav">
+  <a href="/" class="menu-link">← Menu | منو</a>
 </div>
 
 <div class="layout">
@@ -588,10 +605,10 @@ body{
 
       <!-- انتخاب منبع -->
       <div class="tabs">
-        <button class="tab active" id="tab-file" onclick="switchTab('file')">
+        <button class="tab active" id="tab-file" type="button">
           📁 File | فایل
         </button>
-        <button class="tab" id="tab-cam" onclick="switchTab('cam')">
+        <button class="tab" id="tab-cam" type="button">
           📷 Camera | دوربین
         </button>
       </div>
@@ -630,7 +647,7 @@ body{
         </div>
       </div>
 
-      <button class="btn-reset" id="reset-btn" onclick="doReset()">↺ New Input | ورودی جدید</button>
+      <button class="btn-reset" id="reset-btn" type="button">↺ New Input | ورودی جدید</button>
 
       <div class="spinner" id="spinner"><div class="ring"></div>Processing... | در حال پردازش...</div>
       <div class="error-box" id="err-box"></div>
@@ -676,7 +693,7 @@ body{
       <span class="card-label">History | تاریخچه</span>
       <div style="display:flex;align-items:center;gap:8px">
         <span class="card-badge" id="history-count">0 پلاک</span>
-        <button class="history-clear" onclick="clearHistory()">Clear | پاک کردن</button>
+        <button class="history-clear" type="button">Clear | پاک کردن</button>
       </div>
     </div>
     <div class="history-list" id="history-list"></div>
@@ -684,6 +701,9 @@ body{
 </div>
 
 <script>
+'use strict';
+const esc = window.__esc, t = window.__tPipe;
+
 const dropzone    = document.getElementById('dropzone');
 const fileIn      = document.getElementById('file-in');
 const previewBox  = document.getElementById('preview-box');
@@ -703,81 +723,103 @@ const camWrap     = document.getElementById('cam-wrap');
 const camVideo    = document.getElementById('cam-video');
 const camErr      = document.getElementById('cam-err');
 const sourceBadge = document.getElementById('source-badge');
+const STAT_IDS    = ['stat-plates','stat-conf','stat-chars'];
 
-let camStream = null;
-let processing = false; // فقط برای file mode
-let liveTimer  = null;
+let camStream  = null;
+let processing = false;               // file mode only
 const camCanvas  = document.getElementById('cam-canvas');
 const camCtx     = camCanvas.getContext('2d');
 const zoomOverlay= document.getElementById('zoom-overlay');
 const zoomImg    = document.getElementById('zoom-img');
 
-/* ── tabs ── */
-function switchTab(t){
-  document.getElementById('tab-file').classList.toggle('active', t==='file');
-  document.getElementById('tab-cam').classList.toggle('active', t==='cam');
-  document.getElementById('file-section').style.display = t==='file' ? 'block' : 'none';
-  document.getElementById('cam-section').style.display  = t==='cam'  ? 'flex'  : 'none';
-  sourceBadge.textContent = t==='file' ? __tPipe('File | فایل') : __tPipe('Camera | دوربین');
-  if(t==='cam') startCamera(); else stopCamera();
-  doReset();
+function showStats(on){
+  STAT_IDS.forEach(id => document.getElementById(id).style.display = on ? 'block' : 'none');
 }
 
-/* ── camera — دوربین عقب با fallback ── */
+/* ── tabs ── */
+function switchTab(tab){
+  document.getElementById('tab-file').classList.toggle('active', tab === 'file');
+  document.getElementById('tab-cam').classList.toggle('active', tab === 'cam');
+  document.getElementById('file-section').style.display = tab === 'file' ? 'block' : 'none';
+  document.getElementById('cam-section').style.display  = tab === 'cam'  ? 'flex'  : 'none';
+  sourceBadge.textContent = t(tab === 'file' ? 'File | فایل' : 'Camera | دوربین');
+  if(tab === 'cam') startCamera(); else stopCamera();
+  doReset();
+}
+function activeTab(){
+  return document.getElementById('tab-cam').classList.contains('active') ? 'cam' : 'file';
+}
+
+/* ── camera — rear camera with fallbacks ── */
 async function startCamera(){
-  camErr.style.display='none';
-  // ترتیب اولویت: دوربین عقب exact → دوربین عقب → هر دوربینی
-  const constraints = [
-    {video:{facingMode:{exact:'environment'}},audio:false},
-    {video:{facingMode:'environment'},audio:false},
-    {video:true,audio:false},
-  ];
-  for(const c of constraints){
-    try{
-      camStream=await navigator.mediaDevices.getUserMedia(c);
-      camVideo.srcObject=camStream;
-      camWrap.style.display='block';
-      camVideo.addEventListener('loadedmetadata', startLive, {once:true});
-      return;
-    } catch(e){ /* امتحان بعدی */ }
+  camErr.style.display = 'none';
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    // getUserMedia only exists in a secure context: https:// or localhost.
+    camErr.style.display = 'block';
+    camErr.textContent = t('Camera needs HTTPS or localhost | دوربین به HTTPS یا localhost نیاز دارد');
+    return;
   }
-  camErr.style.display='block';
-  camErr.textContent=__tPipe('Camera access is not available | دسترسی به دوربین ممکن نیست');
+  const attempts = [
+    {video:{facingMode:{exact:'environment'}}, audio:false},
+    {video:{facingMode:'environment'},         audio:false},
+    {video:true,                               audio:false},
+  ];
+  let lastErr = null;
+  for(const constraints of attempts){
+    try{
+      camStream = await navigator.mediaDevices.getUserMedia(constraints);
+      camVideo.srcObject = camStream;
+      camWrap.style.display = 'block';
+      camVideo.addEventListener('loadedmetadata', startLive, {once:true});
+      try{ await camVideo.play(); }catch(e){ /* autoplay policy — muted video is fine */ }
+      return;
+    }catch(e){ lastErr = e; }
+  }
+  camErr.style.display = 'block';
+  camErr.textContent = t('Camera access is not available | دسترسی به دوربین ممکن نیست')
+    + (lastErr && lastErr.name ? ' (' + lastErr.name + ')' : '');
 }
 
 function stopCamera(){
   stopLive();
-  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
-  camVideo.srcObject=null;
-  camWrap.style.display='none';
+  if(camStream){
+    camStream.getTracks().forEach(track => track.stop());
+    camStream = null;
+  }
+  camVideo.srcObject = null;
+  camWrap.style.display = 'none';
 }
 
 /* ── live detection ──
-   ویدیو هیچ‌وقت متوقف نمی‌شه.
-   هر N ثانیه یه snapshot از ویدیو می‌گیریم و به سرور می‌فرستیم.
-   اگه request در پرواز باشه، snapshot جدید skip می‌شه.
+   The video never stops. Every LIVE_INTERVAL ms a snapshot is sent to the
+   server; while a request is in flight new snapshots are skipped.
 ── */
-let liveRunning = false;
-let liveInflight = false;      // request در حال ارسال
-let liveLastSnap = 0;          // زمان آخرین snapshot
-const LIVE_INTERVAL = 2000;    // هر ۲ ثانیه یه بار (قابل تنظیم)
+let liveRunning   = false;
+let liveInflight  = false;
+let liveLastSnap  = 0;
+let liveLastCheck = 0;
+const LIVE_INTERVAL = 2000;
 
 function startLive(){
+  if(liveRunning) return;
   liveRunning = true;
   requestAnimationFrame(liveRaf);
 }
 function stopLive(){
   liveRunning = false;
+  setLiveHint(null);
 }
 
 function liveRaf(now){
   if(!liveRunning) return;
   requestAnimationFrame(liveRaf);
 
-  if(liveInflight || now - liveLastSnap < LIVE_INTERVAL) return;
+  if(liveInflight || now - liveLastCheck < LIVE_INTERVAL) return;
   if(!camStream || camVideo.readyState < 2) return;
+  // Stamped before the quality gate: when a frame is rejected the old code left
+  // this untouched, so frameQuality() re-ran on every animation frame (~60/s).
+  liveLastCheck = now;
 
-  // snapshot با canvas مخفی
   const vw = camVideo.videoWidth  || 640;
   const vh = camVideo.videoHeight || 480;
   const scale = Math.min(1, 480 / vw);
@@ -785,11 +827,9 @@ function liveRaf(now){
   camCanvas.height = Math.round(vh * scale);
   camCtx.drawImage(camVideo, 0, 0, camCanvas.width, camCanvas.height);
 
-  // ── بررسی کیفیت فریم ──
-  const quality = frameQuality(camCtx, camCanvas.width, camCanvas.height);
+  const quality = frameQuality(camCtx);
   if(!quality.ok){
-    // نمایش دلیل skip در live indicator
-    setLiveHint(quality.reason);
+    setLiveHint(t(quality.reason));
     return;
   }
   setLiveHint(null);
@@ -798,253 +838,362 @@ function liveRaf(now){
   liveInflight = true;
 
   camCanvas.toBlob(blob => {
-    if(!blob || !liveRunning){ liveInflight=false; return; }
+    if(!blob || !liveRunning){ liveInflight = false; return; }
     const fd = new FormData();
-    fd.append('image', blob, 'f.jpg');
+    fd.append('image', blob, 'frame.jpg');
     fetch('/detect', {method:'POST', body:fd})
-      .then(r => {
-        if(r.status === 503) return r.json().then(d => { throw {loading: d.loading, msg: d.error}; });
-        return r.json();
+      .then(res => res.json().then(data => ({ok:res.ok, status:res.status, data})))
+      .then(({ok, status, data}) => {
+        if(ok){
+          if(data.ocr_text) showLiveResult(data);
+          return;
+        }
+        if(status === 503) setLiveHint(t('Loading... | در حال بارگذاری...'));
+        else setLiveHint(t('Server error | خطای سرور'));
       })
-      .then(data => { if(data.ocr_text) showLiveResult(data); })
-      .catch(e => { if(e && e.loading) setLiveHint(__tPipe('Loading... | در حال بارگذاری...')); })
-      .finally(()=>{ liveInflight=false; });
+      .catch(() => setLiveHint(t('Network error | خطای شبکه')))
+      .finally(() => { liveInflight = false; });
   }, 'image/jpeg', 0.72);
 }
 
-/* ── بررسی blur و روشنایی ──
-   از Laplacian variance برای blur و میانگین pixel برای brightness استفاده می‌کنیم.
-   روی یه canvas کوچک (64x64) تا سریع باشه.
+/* ── blur / brightness gate ──
+   Laplacian variance for blur, mean pixel value for brightness, computed on a
+   64x64 downsample so it stays cheap.
 ── */
+const QUALITY_SIZE = 64;
 const _qCanvas = document.createElement('canvas');
 const _qCtx    = _qCanvas.getContext('2d', {willReadFrequently:true});
-_qCanvas.width = _qCanvas.height = 64;
+_qCanvas.width = _qCanvas.height = QUALITY_SIZE;
 
-function frameQuality(srcCtx, w, h){
-  // downsample به 64x64 برای سرعت
-  _qCtx.drawImage(srcCtx.canvas, 0, 0, 64, 64);
-  const px = _qCtx.getImageData(0, 0, 64, 64).data;
+function frameQuality(srcCtx){
+  const n = QUALITY_SIZE;
+  _qCtx.drawImage(srcCtx.canvas, 0, 0, n, n);
+  const px = _qCtx.getImageData(0, 0, n, n).data;
 
-  let sum = 0, sumSq = 0, n = 0;
-  const gray = [];
-  for(let i=0; i<px.length; i+=4){
-    const g = px[i]*0.299 + px[i+1]*0.587 + px[i+2]*0.114;
-    gray.push(g);
-    sum += g;
-    n++;
+  const gray = new Float32Array(n * n);
+  let sum = 0;
+  for(let i = 0, g = 0; i < px.length; i += 4, g++){
+    const v = px[i] * 0.299 + px[i+1] * 0.587 + px[i+2] * 0.114;
+    gray[g] = v;
+    sum += v;
   }
-  const mean = sum / n;
+  const mean = sum / (n * n);
 
-  // روشنایی خیلی کم
-  if(mean < 25) return {ok:false, reason:'تاریک'};
-  // روشنایی خیلی زیاد (overexposed)
-  if(mean > 240) return {ok:false, reason:'خیلی روشن'};
+  if(mean < 25)  return {ok:false, reason:'Too dark | تاریک'};
+  if(mean > 240) return {ok:false, reason:'Too bright | خیلی روشن'};
 
-  // blur: variance of Laplacian تقریبی
-  // از تفاوت همسایگان استفاده می‌کنیم
   let lapVar = 0;
-  for(let y=1; y<63; y++){
-    for(let x=1; x<63; x++){
-      const idx = y*64+x;
-      const lap = gray[idx]*4 - gray[idx-1] - gray[idx+1] - gray[idx-64] - gray[idx+64];
-      lapVar += lap*lap;
+  for(let y = 1; y < n - 1; y++){
+    for(let x = 1; x < n - 1; x++){
+      const i = y * n + x;
+      const lap = gray[i] * 4 - gray[i-1] - gray[i+1] - gray[i-n] - gray[i+n];
+      lapVar += lap * lap;
     }
   }
-  lapVar /= (62*62);
+  lapVar /= (n - 2) * (n - 2);
 
-  if(lapVar < 80) return {ok:false, reason:'تصویر blur'};
-
+  if(lapVar < 80) return {ok:false, reason:'Blurry | تصویر تار'};
   return {ok:true};
 }
 
-/* ── نمایش hint روی live indicator ── */
+/* ── live indicator hint ── */
 const liveIndicator = document.querySelector('.live-indicator');
 function setLiveHint(text){
+  if(!liveIndicator) return;
   if(!text){
-    liveIndicator.innerHTML='<span class="live-dot"></span>LIVE';
-    liveIndicator.style.color='#f87171';
-  } else {
-    liveIndicator.textContent=text;
-    liveIndicator.style.color='#facc15';
+    liveIndicator.innerHTML = '<span class="live-dot"></span>LIVE';
+    liveIndicator.style.color = '#f87171';
+  }else{
+    liveIndicator.textContent = text;
+    liveIndicator.style.color = '#facc15';
   }
 }
 
+function setBadge(state){
+  const palette = {
+    ok:   {color:'#4ade80', label:'Detected | تشخیص داده شد'},
+    warn: {color:'#facc15', label:'Unreadable | خوانده نشد'},
+  }[state];
+  if(!palette){ detectBadge.style.display = 'none'; return; }
+  detectBadge.style.display = 'flex';
+  bdot.style.cssText = 'background:' + palette.color + ';box-shadow:0 0 6px ' + palette.color;
+  btxt.textContent = t(palette.label);
+  btxt.style.color = palette.color;
+}
+
 function showLiveResult(data){
-  spinner.style.display='none';
-  document.getElementById('s-plates').textContent=data.plates_found;
-  document.getElementById('s-conf').textContent=Math.round(data.best_conf*100)+'%';
-  document.getElementById('s-chars').textContent=data.ocr_text.replace(/\s/g,'').length;
-  ['stat-plates','stat-conf','stat-chars'].forEach(id=>document.getElementById(id).style.display='block');
-  emptyEl.style.display='none';
-  resultWrap.style.display='flex';
-  plateRen.innerHTML='';
-  const plate=buildPlateWidget(data.ocr_text,data.plate_info);
-  if(plate) plateRen.appendChild(plate);
-  noPlate.style.display='none';
+  spinner.style.display = 'none';
+  renderStats(data);
+  emptyEl.style.display = 'none';
+  resultWrap.style.display = 'flex';
+  plateRen.innerHTML = '';
+  const widget = buildPlateWidget(data.ocr_text, data.plate_info);
+  if(widget) plateRen.appendChild(widget);
+  noPlate.style.display = widget ? 'none' : 'block';
+  setBadge(widget ? 'ok' : 'warn');
   buildInfo(data.plate_info);
   addHistory(data.ocr_text, data.plate_info);
   if(data.crop) zoomIn(data.crop);
 }
 
+let zoomTimer = null;
 function zoomIn(b64){
-  zoomImg.src='data:image/jpeg;base64,'+b64;
+  zoomImg.src = 'data:image/jpeg;base64,' + b64;
   zoomOverlay.classList.add('active');
-  setTimeout(()=>zoomOverlay.classList.remove('active'), 1600);
+  clearTimeout(zoomTimer);            // a burst of detections used to stack timers
+  zoomTimer = setTimeout(() => zoomOverlay.classList.remove('active'), 1600);
 }
 
 /* ── file drop ── */
-dropzone.addEventListener('dragover', e=>{e.preventDefault();dropzone.classList.add('drag')});
-dropzone.addEventListener('dragleave', ()=>dropzone.classList.remove('drag'));
-dropzone.addEventListener('drop', e=>{
-  e.preventDefault();dropzone.classList.remove('drag');
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag');
   if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
 });
-fileIn.addEventListener('change', ()=>{ if(fileIn.files[0]) handleFile(fileIn.files[0]); });
+fileIn.addEventListener('change', () => { if(fileIn.files[0]) handleFile(fileIn.files[0]); });
 
-function handleFile(f){
-  const reader=new FileReader();
-  reader.onload=ev=>processImage(f, ev.target.result);
-  reader.readAsDataURL(f);
+const MAX_UPLOAD_BYTES = 16 * 1024 * 1024;   // matches MAX_CONTENT_LENGTH server-side
+
+function handleFile(file){
+  if(!file) return;
+  if(file.type && !/^image\//.test(file.type)){
+    showError(t('Please choose an image file | یک فایل تصویری انتخاب کنید'));
+    return;
+  }
+  if(file.size > MAX_UPLOAD_BYTES){
+    showError(t('Image is larger than 16 MB | تصویر بزرگ‌تر از ۱۶ مگابایت است'));
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload  = ev => processImage(file, ev.target.result);
+  reader.onerror = () => showError(t('Could not read the file | خواندن فایل ممکن نشد'));
+  reader.readAsDataURL(file);
+}
+
+function showError(message){
+  errBox.textContent = message;
+  errBox.style.display = 'block';
 }
 
 /* ── core: show preview then detect ── */
-function processImage(blobOrFile, dataUrl){
+function processImage(file, dataUrl){
   if(processing) return;
-  // show preview
-  previewImg.src=dataUrl;
-  previewBox.style.display='block';
-  detectBadge.style.display='none';
-  dropzone.style.display='none';
-  document.getElementById('file-section').querySelector('.dropzone') && (dropzone.style.display='none');
-  resetBtn.style.display='block';
-  errBox.style.display='none';
-  emptyEl.style.display='none';
-  resultWrap.style.display='none';
-  ['stat-plates','stat-conf','stat-chars'].forEach(id=>document.getElementById(id).style.display='none');
-
-  // auto-detect
-  detect(blobOrFile);
+  previewImg.src = dataUrl;
+  previewBox.style.display = 'block';
+  detectBadge.style.display = 'none';
+  dropzone.style.display = 'none';
+  resetBtn.style.display = 'block';
+  errBox.style.display = 'none';
+  emptyEl.style.display = 'none';
+  resultWrap.style.display = 'none';
+  showStats(false);
+  detect(file);
 }
 
-async function detect(blobOrFile){
+function renderStats(data){
+  const found = data.plates_found || 0;
+  document.getElementById('s-plates').textContent = found;
+  document.getElementById('s-conf').textContent =
+    found > 0 ? Math.round((data.best_conf || 0) * 100) + '%' : '—';
+  document.getElementById('s-chars').textContent =
+    data.ocr_text ? data.ocr_text.replace(/\s/g, '').length : '—';
+  showStats(true);
+}
+
+async function detect(file){
   if(processing) return;
-  processing=true;
-  spinner.style.display='flex';
+  processing = true;
+  spinner.style.display = 'flex';
   previewBox.classList.add('scanning');
 
-  const fd=new FormData();
-  fd.append('image', blobOrFile instanceof Blob ? blobOrFile : blobOrFile);
+  const fd = new FormData();
+  fd.append('image', file);
 
   try{
-    const res=await fetch('/detect',{method:'POST',body:fd});
-    const data=await res.json();
-    if(!res.ok) throw new Error(data.error||__tPipe('Server error | خطای سرور'));
+    const res = await fetch('/detect', {method:'POST', body:fd});
+    let data = null;
+    try{ data = await res.json(); }catch(e){ /* non-JSON body */ }
+    if(!res.ok || !data){
+      throw new Error((data && data.error) || t('Server error | خطای سرور'));
+    }
 
     previewBox.classList.remove('scanning');
+    // The server returns the frame with detection boxes drawn on it; the old
+    // code requested it and then never showed it, keeping the raw preview.
+    if(data.image) previewImg.src = 'data:image/jpeg;base64,' + data.image;
+    renderStats(data);
+    resultWrap.style.display = 'flex';
+    plateRen.innerHTML = '';
 
-    // stats
-    document.getElementById('s-plates').textContent=data.plates_found;
-    document.getElementById('s-conf').textContent=data.plates_found>0?Math.round(data.best_conf*100)+'%':'—';
-    document.getElementById('s-chars').textContent=data.ocr_text?data.ocr_text.replace(/\s/g,'').length:'—';
-    ['stat-plates','stat-conf','stat-chars'].forEach(id=>document.getElementById(id).style.display='block');
-
-    resultWrap.style.display='flex';
-
-    if(data.ocr_text){
-      plateRen.innerHTML='';
-      const plate=buildPlateWidget(data.ocr_text, data.plate_info);
-      if(plate) plateRen.appendChild(plate);
-      noPlate.style.display='none';
-      detectBadge.style.display='flex';
-      bdot.style.cssText='background:#4ade80;box-shadow:0 0 6px #4ade80';
-      btxt.textContent=__tPipe('Detected | تشخیص داده شد');btxt.style.color='#4ade80';
+    const widget = data.ocr_text ? buildPlateWidget(data.ocr_text, data.plate_info) : null;
+    if(widget){
+      plateRen.appendChild(widget);
+      noPlate.style.display = 'none';
+      setBadge('ok');
       buildInfo(data.plate_info);
       addHistory(data.ocr_text, data.plate_info);
-    } else {
-      plateRen.innerHTML='';
-      noPlate.style.display='block';
-      infoGrid.style.display='none';
-      detectBadge.style.display='flex';
-      bdot.style.cssText='background:#facc15;box-shadow:0 0 6px #facc15';
-      btxt.textContent=__tPipe('Unreadable | خوانده نشد');btxt.style.color='#facc15';
+    }else{
+      noPlate.style.display = 'block';
+      infoGrid.style.display = 'none';
+      setBadge('warn');
     }
-  } catch(e){
+  }catch(e){
     previewBox.classList.remove('scanning');
-    errBox.textContent='خطا: '+e.message;
-    errBox.style.display='block';
-  } finally{
-    spinner.style.display='none';
-    processing=false;
+    // Was hardcoded Persian ("خطا: ") regardless of the selected language.
+    showError(t('Error | خطا') + ': ' + (e.message || e));
+  }finally{
+    spinner.style.display = 'none';
+    processing = false;
   }
 }
 
 /* ── reset ── */
 function doReset(){
-  processing=false;
-  fileIn.value='';
-  previewBox.style.display='none';
-  detectBadge.style.display='none';
-  resetBtn.style.display='none';
-  errBox.style.display='none';
-  emptyEl.style.display='flex';
-  resultWrap.style.display='none';
-  plateRen.innerHTML='';
-  infoGrid.innerHTML='';
-  ['stat-plates','stat-conf','stat-chars'].forEach(id=>document.getElementById(id).style.display='none');
-  // نمایش dropzone اگر tab فایل فعاله
-  if(document.getElementById('tab-file').classList.contains('active')){
-    dropzone.style.display='flex';
-  }
+  processing = false;
+  fileIn.value = '';
+  previewBox.style.display = 'none';
+  previewBox.classList.remove('scanning');
+  detectBadge.style.display = 'none';
+  resetBtn.style.display = 'none';
+  errBox.style.display = 'none';
+  emptyEl.style.display = 'flex';
+  resultWrap.style.display = 'none';
+  plateRen.innerHTML = '';
+  infoGrid.innerHTML = '';
+  noPlate.style.display = 'none';
+  showStats(false);
+  if(activeTab() === 'file') dropzone.style.display = 'flex';
 }
 
 /* ── info ── */
 function buildInfo(pi){
-  if(!pi){infoGrid.style.display='none';return;}
-  let h='';
+  if(!pi){ infoGrid.style.display = 'none'; return; }
+  let html = '';
   if(pi.vehicle_type){
-    const vt=pi.vehicle_type;
-    h+=`<div class="info-cell full"><div class="info-key">${__tPipe('Vehicle Type | نوع خودرو')}</div>
-      <div class="info-val"><span class="vtype-badge">${vehicleTypeLabel(vt)}</span></div></div>`;
+    html += '<div class="info-cell full"><div class="info-key">' + esc(t('Vehicle Type | نوع خودرو')) + '</div>'
+          + '<div class="info-val"><span class="vtype-badge">' + esc(vehicleTypeLabel(pi.vehicle_type)) + '</span></div></div>';
   }
-  if(pi.locations&&pi.locations.length){
-    const provs=[...new Set(pi.locations.map(l=>isEnglishUI() ? locationLabelFaToEn(l.province) : l.province))].join(isEnglishUI() ? ', ' : '، ');
-    const cities=pi.locations.map(l=>`<span class="chip">${isEnglishUI() ? locationLabelFaToEn(l.city) : l.city}</span>`).join('');
-    h+=`<div class="info-cell"><div class="info-key">${__tPipe('Province | استان')}</div><div class="info-val">${provs}</div></div>`;
-    h+=`<div class="info-cell"><div class="info-key">${__tPipe('City | شهر')}</div><div>${cities}</div></div>`;
-  } else {
-    h+=`<div class="info-cell full"><div class="info-key">${__tPipe('Region | منطقه')}</div><div class="info-val" style="color:var(--tx2)">${__tPipe('Not found | یافت نشد')}</div></div>`;
+  if(pi.locations && pi.locations.length){
+    const provinces = [...new Set(pi.locations.map(l => localName(l.province)))]
+      .join(isEnglishUI() ? ', ' : '، ');
+    const cities = pi.locations
+      .map(l => '<span class="chip">' + esc(localName(l.city)) + '</span>').join('');
+    html += '<div class="info-cell"><div class="info-key">' + esc(t('Province | استان')) + '</div>'
+          + '<div class="info-val">' + esc(provinces) + '</div></div>';
+    html += '<div class="info-cell"><div class="info-key">' + esc(t('City | شهر')) + '</div>'
+          + '<div>' + cities + '</div></div>';
+  }else{
+    html += '<div class="info-cell full"><div class="info-key">' + esc(t('Region | منطقه')) + '</div>'
+          + '<div class="info-val" style="color:var(--tx2)">' + esc(t('Not found | یافت نشد')) + '</div></div>';
   }
-  infoGrid.innerHTML=h;
-  infoGrid.style.display='grid';
+  infoGrid.innerHTML = html;
+  infoGrid.style.display = 'grid';
 }
 
-/* ── helpers (اینجا زودتر تعریف می‌شن چون تاریخچه بهشون نیاز داره) ── */
-const TO_FA={'0':'۰','1':'۱','2':'۲','3':'۳','4':'۴','5':'۵','6':'۶','7':'۷','8':'۸','9':'۹'};
-const TO_EN={'۰':'0','۱':'1','۲':'2','۳':'3','۴':'4','۵':'5','۶':'6','۷':'7','۸':'8','۹':'9'};
-const toFa=s=>s.split('').map(c=>TO_FA[c]??c).join('');
-const toEn=s=>s.split('').map(c=>TO_EN[c]??c).join('');
+/* ── plate parsing helpers ── */
+const TO_FA = {'0':'۰','1':'۱','2':'۲','3':'۳','4':'۴','5':'۵','6':'۶','7':'۷','8':'۸','9':'۹'};
+const TO_EN = {'۰':'0','۱':'1','۲':'2','۳':'3','۴':'4','۵':'5','۶':'6','۷':'7','۸':'8','۹':'9',
+               '٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
+const toFa = s => String(s).split('').map(c => TO_FA[c] ?? c).join('');
+const toEn = s => String(s).split('').map(c => TO_EN[c] ?? c).join('');
+
+/* Mirrors plates.py. The previous regex used [؀-ۿ] for the letter, which also
+   matches Persian digits — so eight digits parsed as a valid plate — and it
+   accepted only a single character, so "الف" never matched. */
+const LETTER_ALIASES = {
+  'ي':'ی','ى':'ی','ك':'ک','ھ':'ه','ة':'ه','ۀ':'ه',
+  'أ':'الف','إ':'الف','آ':'الف','ٱ':'الف','ا':'الف'
+};
+const PLATE_LETTERS = ['الف','ب','ت','ث','ج','د','ز','س','ش','ص','ط','ع','ف','ق',
+                       'ل','م','ن','ه','و','پ','ژ','ک','گ','ی'];
+const LETTER_ALT = PLATE_LETTERS.concat(Object.keys(LETTER_ALIASES))
+  .sort((a, b) => b.length - a.length)
+  .map(l => l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  .join('|');
+const PLATE_RE = new RegExp(
+  '^(\\d{2})[\\s\\-_.]*(' + LETTER_ALT + ')[\\s\\-_.]*(\\d{3})[\\s\\-_.]*(\\d{2})$');
+const BIDI_RE = /[‌‍‎‏‪-‮⁦-⁩ـ]/g;
+
+function canonicalLetter(raw){
+  const s = String(raw || '').replace(BIDI_RE, '').trim();
+  return LETTER_ALIASES[s] || s;
+}
 
 function parsePlate(raw){
-  const t=raw.replace(/\s/g,'');
-  const m=t.match(/^([0-9۰-۹]{2})([؀-ۿ])([0-9۰-۹]{3})([0-9۰-۹]{2})$/);
+  const cleaned = toEn(String(raw || '').replace(BIDI_RE, '')).trim();
+  const m = cleaned.match(PLATE_RE);
   if(!m) return null;
-  const en1=toEn(m[1]), en3=toEn(m[3]), en4=toEn(m[4]);
+  const letter = canonicalLetter(m[2]);
+  if(PLATE_LETTERS.indexOf(letter) === -1) return null;
   return {
-    prefix: toFa(en1),   // ۲۴ — فارسی برای SVG و نمایش
-    letter: m[2],          // ن
-    middle: toFa(en3),   // ۱۴۴ — فارسی
-    suffix: toFa(en4),   // ۶۶ — فارسی
-    copyText: en1+m[2]+en3+'-'+en4,  // 24ن144-66 لاتین برای کلیپ‌بورد
+    prefix:  toFa(m[1]),
+    letter:  letter,
+    middle:  toFa(m[3]),
+    suffix:  toFa(m[4]),
+    copyText: m[1] + letter + m[3] + '-' + m[4],
   };
 }
 
+/* Prefer the server's parse (it owns the canonical form); fall back locally. */
+function plateParts(rawText, pi){
+  if(pi && pi.canonical && pi.prefix && pi.letter){
+    return {
+      prefix: toFa(pi.prefix),
+      letter: pi.letter,
+      middle: toFa(pi.middle),
+      suffix: toFa(pi.suffix),
+      copyText: pi.canonical,
+    };
+  }
+  return parsePlate(rawText);
+}
+
+/* Bidi-safe clipboard write with a fallback for non-secure origins, where
+   navigator.clipboard is undefined (e.g. http://192.168.x.x). */
 function copyPlateText(value){
-  // Robust bidi-safe copy for mixed EN digits + FA letter across different apps
-  const cleaned = String(value || '').replace(/[\u2066-\u2069\u202A-\u202E\u202C\u200E\u200F]/g, '');
-  const m = cleaned.match(/^(\d{2})([^\d-])(\d{3})-(\d{2})$/);
-  const logical = m ? `${m[1]}\u200E${m[2]}\u200E${m[3]}-${m[4]}` : cleaned;
-  const safeValue = '\u202A' + logical + '\u202C'; // LRE ... PDF (widely supported)
-  return navigator.clipboard.writeText(safeValue);
+  const cleaned = String(value || '').replace(/[⁦-⁩‪-‮‎‏]/g, '');
+  const m = cleaned.match(/^(\d{2})([^\d-]+)(\d{3})-(\d{2})$/);
+  const logical = m ? m[1] + '‎' + m[2] + '‎' + m[3] + '-' + m[4] : cleaned;
+  const safe = '‪' + logical + '‬';
+
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    return navigator.clipboard.writeText(safe);
+  }
+  return new Promise((resolve, reject) => {
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = safe;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      ok ? resolve() : reject(new Error('copy failed'));
+    }catch(e){ reject(e); }
+  });
+}
+
+function flashTip(message){
+  const tip = document.createElement('div');
+  tip.textContent = message;
+  tip.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);'
+    + 'background:#1a1a1a;color:#e8c97e;border:1px solid rgba(232,201,126,.3);'
+    + 'padding:8px 18px;border-radius:8px;font-size:.78rem;z-index:9999;'
+    + 'pointer-events:none;transition:opacity .4s;max-width:90vw;text-align:center';
+  document.body.appendChild(tip);
+  setTimeout(() => {
+    tip.style.opacity = '0';
+    setTimeout(() => tip.remove(), 400);
+  }, 1800);
+}
+
+function copyWithFeedback(value){
+  copyPlateText(value)
+    .then(() => flashTip(t('Copied | کپی شد') + ': ' + value))
+    .catch(() => flashTip(t('Copy failed | کپی نشد')));
 }
 
 function isEnglishUI(){
@@ -1052,7 +1201,6 @@ function isEnglishUI(){
 }
 
 function transliterateFa(text){
-  const s = String(text || '');
   const map = {
     'ا':'a','آ':'a','ب':'b','پ':'p','ت':'t','ث':'s','ج':'j','چ':'ch','ح':'h','خ':'kh',
     'د':'d','ذ':'z','ر':'r','ز':'z','ژ':'zh','س':'s','ش':'sh','ص':'s','ض':'z','ط':'t',
@@ -1061,216 +1209,228 @@ function transliterateFa(text){
     '۰':'0','۱':'1','۲':'2','۳':'3','۴':'4','۵':'5','۶':'6','۷':'7','۸':'8','۹':'9',
     '،':',','-':'-',' ':' '
   };
-  return s.split('').map(c => map[c] ?? c).join('');
+  return String(text || '').split('').map(c => map[c] ?? c).join('');
 }
 
-function locationLabelFaToEn(name){
-  const direct = {
-    'تهران':'Tehran',
-    'تهران - مناطق شمال':'Tehran - North Districts',
-    'تهران - مناطق مرکزی':'Tehran - Central Districts',
-    'تهران - مناطق جنوب':'Tehran - South Districts'
-  };
-  return direct[name] || transliterateFa(name);
+const LOCATION_EN = {
+  'تهران':'Tehran',
+  'تهران - مناطق شمال':'Tehran - North Districts',
+  'تهران - مناطق مرکزی':'Tehran - Central Districts',
+  'تهران - مناطق جنوب':'Tehran - South Districts'
+};
+function localName(name){
+  if(!isEnglishUI()) return name;
+  return LOCATION_EN[name] || transliterateFa(name);
 }
 
+const VEHICLE_TYPE_EN = {
+  shakhsi:'Private vehicles', taxi:'Taxi', omoomi:'Public vehicles',
+  dolati:'Government vehicles', maloolin:'Disabled veterans',
+  keshavarzi:'Agricultural vehicles', police:'Police vehicles',
+  setad:'Armed Forces HQ', mosalah:'Ministry of Defense',
+  artesh:'Army vehicles', sepah:'IRGC vehicles', gozar:'Temporary transit'
+};
 function vehicleTypeLabel(vt){
   if(!vt) return '';
-  const byId = {
-    shakhsi:'Private vehicles',
-    taxi:'Taxi',
-    omoomi:'Public vehicles',
-    dolati:'Government vehicles',
-    maloolin:'Disabled veterans',
-    keshavarzi:'Agricultural vehicles',
-    police:'Police vehicles',
-    setad:'Armed Forces HQ',
-    mosalah:'Ministry of Defense',
-    artesh:'Army vehicles',
-    sepah:'IRGC vehicles',
-    gozar:'Temporary transit'
-  };
-  return isEnglishUI() ? (byId[vt.id] || vt.type || '') : (vt.type || '');
+  return isEnglishUI() ? (VEHICLE_TYPE_EN[vt.id] || vt.type || '') : (vt.type || '');
 }
 
 function plateTheme(bg){
-  const color = (bg && typeof bg === 'string') ? bg.trim() : '#ddd';
-  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(color) ? color : '#ddd';
+  const raw = (bg && typeof bg === 'string') ? bg.trim() : '#ddd';
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw) ? raw : '#ddd';
   const norm = hex.length === 4
-    ? '#' + hex[1]+hex[1] + hex[2]+hex[2] + hex[3]+hex[3]
+    ? '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3]
     : hex.toLowerCase();
-  const r = parseInt(norm.slice(1,3),16);
-  const g = parseInt(norm.slice(3,5),16);
-  const b = parseInt(norm.slice(5,7),16);
-  const luma = (0.299*r + 0.587*g + 0.114*b);
-  const fg = luma < 140 ? '#f7f7f7' : '#1d2b1f';
-  const sideBorder = luma < 140 ? '#8a8a8a' : '#555';
-  return {bg:norm, fg, sideBorder};
+  const r = parseInt(norm.slice(1,3), 16);
+  const g = parseInt(norm.slice(3,5), 16);
+  const b = parseInt(norm.slice(5,7), 16);
+  const luma = 0.299*r + 0.587*g + 0.114*b;
+  return {
+    bg: norm,
+    fg: luma < 140 ? '#f7f7f7' : '#1d2b1f',
+    sideBorder: luma < 140 ? '#8a8a8a' : '#555',
+  };
 }
 
-/* ── تاریخچه ── */
-const historyWrap = document.getElementById('history-wrap');
-const historyList = document.getElementById('history-list');
-const historyCount= document.getElementById('history-count');
-const history = []; // [{plateRaw, plateDisplay, meta, time}]
-
-function plateKey(raw){
-  // کلید یکتا: فقط اعداد و حرف، normalize شده به لاتین
-  return raw.replace(/\s/g,'').split('').map(c=>TO_EN[c]??c).join('').toUpperCase();
-}
+/* ── history ──
+   Named scanHistory, not `history`: a top-level `const history` shadows
+   window.history for the whole script.
+── */
+const historyWrap  = document.getElementById('history-wrap');
+const historyList  = document.getElementById('history-list');
+const historyCount = document.getElementById('history-count');
+const scanHistory  = [];
+const MAX_HISTORY  = 50;
 
 function addHistory(rawText, pi){
-  const key = plateKey(rawText);
-  // اگه آخرین پلاک همینه، skip کن
-  if(history.length > 0 && history[0].key === key) return;
-  // اگه قبلاً در لیست هست، از جایش بردار و بالا بیار
-  const existIdx = history.findIndex(h=>h.key===key);
-  if(existIdx !== -1) history.splice(existIdx, 1);
+  const parts = plateParts(rawText, pi);
+  const key = parts ? parts.copyText : String(rawText || '').replace(/\s/g, '');
+  if(!key) return;
+  if(scanHistory.length && scanHistory[0].key === key) return;
 
-  const p = parsePlate(rawText);
-  const display = p ? `${p.prefix} ${p.letter} ${p.middle} - ${p.suffix}` : rawText;
-  const copyStr = p ? p.copyText : rawText;
+  const existing = scanHistory.findIndex(h => h.key === key);
+  if(existing !== -1) scanHistory.splice(existing, 1);
 
-  let meta = '';
   let bg = '#ddd';
-  if(pi){
-    if(pi.vehicle_type) meta += vehicleTypeLabel(pi.vehicle_type);
-    if(pi.vehicle_type && pi.vehicle_type.bg) bg = pi.vehicle_type.bg;
-    if(pi.locations && pi.locations.length){
-      const prov = [...new Set(pi.locations.map(l=>isEnglishUI() ? locationLabelFaToEn(l.province) : l.province))].join(isEnglishUI() ? ', ' : '، ');
-      meta += (meta ? ' · ' : '') + prov;
-    }
-  }
+  if(pi && pi.vehicle_type && pi.vehicle_type.bg) bg = pi.vehicle_type.bg;
 
   const now = new Date();
-  const timeStr = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0')+':'+now.getSeconds().toString().padStart(2,'0');
+  const pad = n => String(n).padStart(2, '0');
 
-  history.unshift({key, display, copyStr, meta, time: timeStr, bg});
-  if(history.length > 50) history.pop();
-
+  scanHistory.unshift({
+    key,
+    parts,
+    raw: String(rawText || ''),
+    copyStr: key,
+    bg,
+    typeId: pi && pi.vehicle_type ? pi.vehicle_type.id : null,
+    typeName: pi && pi.vehicle_type ? pi.vehicle_type.type : null,
+    provinces: (pi && pi.locations ? pi.locations.map(l => l.province) : []),
+    time: pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds()),
+  });
+  if(scanHistory.length > MAX_HISTORY) scanHistory.pop();
   renderHistory();
 }
 
+/* Built at render time (not stored), so a language switch relabels old rows. */
+function historyMeta(item){
+  const bits = [];
+  if(item.typeId || item.typeName){
+    bits.push(vehicleTypeLabel({id:item.typeId, type:item.typeName}));
+  }
+  if(item.provinces.length){
+    bits.push([...new Set(item.provinces.map(localName))].join(isEnglishUI() ? ', ' : '، '));
+  }
+  return bits.filter(Boolean).join(' · ');
+}
+
 function renderHistory(){
-  historyWrap.style.display = history.length ? 'flex' : 'none';
-  historyCount.textContent = history.length + ' ' + __tPipe('Plates | پلاک');
+  historyWrap.style.display = scanHistory.length ? 'flex' : 'none';
+  historyCount.textContent = scanHistory.length + ' ' + t('Plates | پلاک');
   historyList.innerHTML = '';
-  history.forEach((h, i) => {
+
+  scanHistory.forEach((item, index) => {
+    const p = item.parts;
+    const meta = historyMeta(item);
     const row = document.createElement('div');
     row.className = 'history-item';
-    const p = parsePlate(h.display.replace('-', '').replace(' - ', ''));
-    const miniPlate = p ? `
-      <div class="history-plate" title="${__tPipe('Click to copy | کلیک برای کپی')}">
-        <div class="history-plate-blue">
-          <div class="history-plate-flag"><div></div><div></div><div></div></div>
-          <div class="history-plate-ir">I.R.<br>IRAN</div>
-        </div>
-        <div class="history-plate-main">
-          <span>${p.prefix}</span>
-          <span class="history-plate-letter">${p.letter}</span>
-          <span>${p.middle}</span>
-        </div>
-        <div class="history-plate-side">
-          <span>ایران</span>
-          <strong>${p.suffix}</strong>
-        </div>
-      </div>` : `<span class="hi-plate">${h.display}</span>`;
 
-    row.innerHTML = `
-      <span class="hi-num">${i+1}</span>
-      <div class="hi-main">
-        ${miniPlate}
-        <div class="hi-side">
-          <span class="hi-time">${h.time}</span>
-          ${h.meta?`<span class="hi-meta">${h.meta}</span>`:''}
-          <span class="hi-copy" data-copy="${h.copyStr}">${__tPipe('Copy | کپی')}</span>
-          <span class="hi-del" data-del="${i}">${__tPipe('Delete | حذف')}</span>
-        </div>
-      </div>
-    `;
+    const mini = p
+      ? '<div class="history-plate" title="' + esc(t('Click to copy | کلیک برای کپی')) + '">'
+        + '<div class="history-plate-blue">'
+        +   '<div class="history-plate-flag"><div></div><div></div><div></div></div>'
+        +   '<div class="history-plate-ir">I.R.<br>IRAN</div>'
+        + '</div>'
+        + '<div class="history-plate-main">'
+        +   '<span>' + esc(p.prefix) + '</span>'
+        +   '<span class="history-plate-letter">' + esc(p.letter) + '</span>'
+        +   '<span>' + esc(p.middle) + '</span>'
+        + '</div>'
+        + '<div class="history-plate-side"><span>ایران</span><strong>' + esc(p.suffix) + '</strong></div>'
+        + '</div>'
+      : '<span class="hi-plate">' + esc(item.raw) + '</span>';
+
+    row.innerHTML =
+      '<span class="hi-num">' + (index + 1) + '</span>'
+      + '<div class="hi-main">'
+      +   mini
+      +   '<div class="hi-side">'
+      +     '<span class="hi-time">' + esc(item.time) + '</span>'
+      +     (meta ? '<span class="hi-meta">' + esc(meta) + '</span>' : '')
+      +     '<span class="hi-copy">' + esc(t('Copy | کپی')) + '</span>'
+      +     '<span class="hi-del">' + esc(t('Delete | حذف')) + '</span>'
+      +   '</div>'
+      + '</div>';
+
     const plateEl = row.querySelector('.history-plate');
     if(plateEl){
-      const th = plateTheme(h.bg);
-      plateEl.style.setProperty('--hplate-bg', th.bg);
-      plateEl.style.setProperty('--hplate-fg', th.fg);
-      plateEl.style.setProperty('--hplate-side-border', th.sideBorder);
-      plateEl.addEventListener('click', e=>{
-        e.stopPropagation();
-        copyPlateText(h.copyStr).then(()=>{
-          const tip=document.createElement('div');
-          tip.textContent=__tPipe('Copied | کپی شد')+': '+h.copyStr;
-          tip.style.cssText='position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#e8c97e;border:1px solid rgba(232,201,126,.3);padding:8px 18px;border-radius:8px;font-size:.78rem;z-index:9999;pointer-events:none;transition:opacity .4s';
-          document.body.appendChild(tip);
-          setTimeout(()=>{tip.style.opacity='0';setTimeout(()=>tip.remove(),400)},1800);
-        });
+      const theme = plateTheme(item.bg);
+      plateEl.style.setProperty('--hplate-bg', theme.bg);
+      plateEl.style.setProperty('--hplate-fg', theme.fg);
+      plateEl.style.setProperty('--hplate-side-border', theme.sideBorder);
+      plateEl.addEventListener('click', ev => {
+        ev.stopPropagation();
+        copyWithFeedback(item.copyStr);
       });
     }
-    row.querySelector('.hi-copy').addEventListener('click', e=>{
-      e.stopPropagation();
-      copyPlateText(h.copyStr).then(()=>{
-        const el = e.target;
-        el.textContent='✓';el.style.color='var(--ok)';
-        setTimeout(()=>{el.textContent=__tPipe('Copy | کپی');el.style.color='';},1200);
-      });
+
+    row.querySelector('.hi-copy').addEventListener('click', ev => {
+      ev.stopPropagation();
+      const el = ev.currentTarget;
+      copyPlateText(item.copyStr).then(() => {
+        el.textContent = '✓';
+        el.style.color = 'var(--ok)';
+        setTimeout(() => { el.textContent = t('Copy | کپی'); el.style.color = ''; }, 1200);
+      }).catch(() => flashTip(t('Copy failed | کپی نشد')));
     });
-    row.querySelector('.hi-del').addEventListener('click', e=>{
-      e.stopPropagation();
-      history.splice(i, 1);
+
+    row.querySelector('.hi-del').addEventListener('click', ev => {
+      ev.stopPropagation();
+      const at = scanHistory.indexOf(item);   // index is stale after a re-render
+      if(at !== -1) scanHistory.splice(at, 1);
       renderHistory();
     });
+
     historyList.appendChild(row);
   });
 }
 
 function clearHistory(){
-  history.length = 0;
+  scanHistory.length = 0;
   renderHistory();
 }
 
-/* ── Plate UI (iranian-license-plate style) ── */
-function buildPlateWidget(text,pi){
-  const p=parsePlate(text);
+/* ── plate widget ── */
+function buildPlateWidget(text, pi){
+  const p = plateParts(text, pi);
   if(!p) return null;
+
   const plate = document.createElement('div');
   plate.className = 'license-plate';
-  plate.title = __tPipe('Click to copy | کلیک برای کپی');
-  const th = plateTheme(pi && pi.vehicle_type ? pi.vehicle_type.bg : '#ddd');
-  plate.style.setProperty('--plate-bg', th.bg);
-  plate.style.setProperty('--plate-fg', th.fg);
-  plate.style.setProperty('--plate-side-border', th.sideBorder);
+  plate.title = t('Click to copy | کلیک برای کپی');
+  const theme = plateTheme(pi && pi.vehicle_type ? pi.vehicle_type.bg : '#ddd');
+  plate.style.setProperty('--plate-bg', theme.bg);
+  plate.style.setProperty('--plate-fg', theme.fg);
+  plate.style.setProperty('--plate-side-border', theme.sideBorder);
 
-  plate.innerHTML = `
-    <div class="blue-column">
-      <div class="flag"><div></div><div></div><div></div></div>
-      <div class="text">
-        <div>I.R.</div>
-        <div>IRAN</div>
-      </div>
-    </div>
-    <div class="plate-center">
-      <span>${p.prefix}</span>
-      <span class="alphabet-column">${p.letter}</span>
-      <span>${p.middle}</span>
-    </div>
-    <div class="iran-column">
-      <span>ایــران</span>
-      <strong>${p.suffix}</strong>
-    </div>
-  `;
+  plate.innerHTML =
+    '<div class="blue-column">'
+    +  '<div class="flag"><div></div><div></div><div></div></div>'
+    +  '<div class="text"><div>I.R.</div><div>IRAN</div></div>'
+    + '</div>'
+    + '<div class="plate-center">'
+    +  '<span>' + esc(p.prefix) + '</span>'
+    +  '<span class="alphabet-column">' + esc(p.letter) + '</span>'
+    +  '<span>' + esc(p.middle) + '</span>'
+    + '</div>'
+    + '<div class="iran-column"><span>ایــران</span><strong>' + esc(p.suffix) + '</strong></div>';
 
-  plate.addEventListener('click',()=>{
-    copyPlateText(p.copyText).then(()=>{
-      const tip=document.createElement('div');
-      tip.textContent=__tPipe('Copied | کپی شد')+': '+p.copyText;
-      tip.style.cssText='position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#e8c97e;border:1px solid rgba(232,201,126,.3);padding:8px 18px;border-radius:8px;font-size:.78rem;z-index:9999;pointer-events:none;transition:opacity .4s';
-      document.body.appendChild(tip);
-      setTimeout(()=>{tip.style.opacity='0';setTimeout(()=>tip.remove(),400)},1800);
-    });
-  });
-
+  plate.addEventListener('click', () => copyWithFeedback(p.copyText));
   return plate;
 }
+
+/* ── wiring ── */
+document.getElementById('tab-file').addEventListener('click', () => switchTab('file'));
+document.getElementById('tab-cam').addEventListener('click',  () => switchTab('cam'));
+resetBtn.addEventListener('click', doReset);
+document.querySelector('.history-clear').addEventListener('click', clearHistory);
+
+/* Release the camera when the page is hidden or unloaded — it used to stay on. */
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden) stopLive();
+  else if(camStream && activeTab() === 'cam') startLive();
+});
+window.addEventListener('pagehide', stopCamera);
+
+/* Relabel everything that JS rendered when the language changes. */
+if(window.I18N && window.I18N.onChange){
+  window.I18N.onChange(() => {
+    sourceBadge.textContent = t(activeTab() === 'file' ? 'File | فایل' : 'Camera | دوربین');
+    renderHistory();
+  });
+}
+
+doReset();
 </script>
-<script src="/static/i18n.js"></script>
 </body>
 </html>

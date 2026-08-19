@@ -48,6 +48,15 @@ make up
 ```
 Then open `http://localhost:5000`.
 
+`python app.py` starts Flask's development server, which is fine for local use.
+For anything shared, run the bundled WSGI server instead — this is what the
+Docker image does:
+```bash
+make serve         # waitress-serve --host=0.0.0.0 --port=5000 --threads=8 app:app
+```
+The first start downloads the OCR model (~50 MB) and `/detect` answers `503`
+until it finishes; poll `/health` to wait for readiness.
+
 ## راهنمای فارسی سریع
 این پروژه یک سامانه تشخیص پلاک ایرانی است که شامل:
 - تشخیص پلاک با مدل YOLO
@@ -107,10 +116,15 @@ Notes:
 - For production/public deployment, use a valid certificate from a trusted CA (or your organization PKI).
 - Do not commit real private keys to Git.
 
-## Smoke Test
-Start the app first, then:
+## Tests
+No server or models needed — parsing, lookup and the whole JSON API:
 ```bash
-python scripts/smoke_test.py
+make test          # python scripts/test_plates.py
+```
+
+Against a running server:
+```bash
+make smoke         # python scripts/smoke_test.py [base_url]
 ```
 
 ## Docker
@@ -121,16 +135,21 @@ docker compose up --build
 ## Project Structure
 ```text
 .
-├── app.py
-├── camera_manager.py
-├── db.py
-├── run_https.py
+├── app.py               # Flask routes, plate_data indexes, JSON error handling
+├── models.py            # lazy model loading + serialised inference
+├── plates.py            # canonical plate parsing / normalisation
+├── camera_manager.py    # RTSP workers, SSE event bus
+├── db.py                # SQLite schema, queries, migrations
+├── run_https.py         # self-signed TLS for phone camera access
 ├── best.pt
 ├── plate_data.json
-├── templates/
-├── static/
+├── templates/           # menu.html · index.html (scan) · cameras.html
+├── static/i18n.js
 ├── fonts/
-├── scripts/smoke_test.py
+├── scripts/
+│   ├── test_plates.py      # offline checks, no server or models needed
+│   ├── smoke_test.py        # hits a running server
+│   └── test_rtsp_sources.py
 ├── Dockerfile
 ├── docker-compose.yml
 ├── Makefile
@@ -138,16 +157,48 @@ docker compose up --build
 ```
 
 ## API Endpoints
-- `GET /status`
-- `POST /detect`
-- `GET/POST /api/cameras`
-- `PUT/DELETE /api/cameras/<id>`
-- `POST /api/cameras/<id>/toggle`
-- `GET /api/cameras/<id>/snapshot`
-- `GET /api/events`
-- `GET/DELETE /api/log`
-- `GET/POST /api/vehicles`
-- `DELETE /api/vehicles/<plate>`
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/status` | `{ready, error, cameras, clients}` |
+| `GET` | `/health` | 200 when models are loaded, 503 otherwise |
+| `POST` | `/detect` | multipart `image`; max 16 MB |
+| `GET` `POST` | `/api/cameras` | RTSP passwords are masked in responses |
+| `GET` `PUT` `DELETE` | `/api/cameras/<id>` | |
+| `POST` | `/api/cameras/<id>/toggle` | body `{enabled}` |
+| `GET` | `/api/cameras/<id>/snapshot` | `{image, age}` |
+| `GET` | `/api/events` | SSE: `detection`, `camera_status` |
+| `GET` `DELETE` | `/api/log` | `?limit=` 1..1000 |
+| `GET` | `/api/log/<id>/crop` | stored plate crop |
+| `GET` `POST` | `/api/vehicles` | |
+| `DELETE` | `/api/vehicles/<plate>` | |
+
+Every error response is JSON: `{"error": "English | فارسی"}`.
+
+### Plate format | قالب پلاک
+Plates are stored and compared in one canonical form: **`24ن144-66`** —
+two digits, the letter, three digits, a dash, the two-digit province code.
+Input is accepted with Persian or Arabic-Indic digits, with or without
+separators; `ا`/`الف`, `ه`/`ھ`, `ي`/`ی` and `ك`/`ک` are folded together.
+
+## Configuration | تنظیمات
+All optional; defaults in parentheses.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PLATE_HOST` / `PLATE_PORT` | `0.0.0.0` / `5000` | bind address |
+| `PLATE_DB` | `./traffic.db` | SQLite path |
+| `PLATE_LOG_LEVEL` | `INFO` | Python logging level |
+| `PLATE_MAX_UPLOAD_MB` | `16` | upload cap for `/detect` |
+| `PLATE_MAX_IMAGE_SIDE` | `1920` | uploads are downscaled to this |
+| `PLATE_DET_CONF` | `0.4` | detector confidence threshold |
+| `PLATE_WEIGHTS` | `./best.pt` | detector weights |
+| `PLATE_OCR_MODEL` | `hezarai/crnn-fa-...-v2` | OCR model id |
+| `PLATE_DETECT_INTERVAL` | `2.0` | seconds between RTSP detections |
+| `PLATE_SNAPSHOT_FPS` | `4` | live-preview encode rate |
+| `PLATE_RECONNECT_WAIT` | `5.0` | seconds before an RTSP retry |
+| `PLATE_LOG_MAX_ROWS` | `5000` | access-log cap (rows store JPEG crops) |
+| `PLATE_OPEN_TIMEOUT_MS` | `6000` | RTSP connect timeout |
+| `PLATE_ALLOW_LOCAL_SOURCES` | unset | allow file paths as camera sources (testing only — the app has no auth) |
 
 ## Launch Checklist (Trending Pack)
 - Add `docs/demo.gif` and 3 screenshots.

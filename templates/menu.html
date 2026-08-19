@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>IranPlate Vision | IranPlate Vision</title>
+<!-- Loaded before the inline script below, which calls __tPipe(). -->
+<script src="/static/i18n.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -11,17 +13,18 @@
   --accent:#6c63ff;--text:#e8e6f0;--muted:#7c7a8a;
   --font:'IY',Tahoma,sans-serif;
 }
-@font-face{font-family:'IY';src:url('/fonts/iranyekanweb_bold.woff') format('woff');font-weight:700}
-@font-face{font-family:'IY';src:url('/fonts/iranyekanweb_medium.woff') format('woff');font-weight:400}
+@font-face{font-family:'IY';src:url('/fonts/iranyekanweb_bold.woff') format('woff');font-weight:700;font-display:swap}
+@font-face{font-family:'IY';src:url('/fonts/iranyekanweb_medium.woff') format('woff');font-weight:400;font-display:swap}
 html,body{
   min-height:100dvh;background:var(--bg);color:var(--text);
   font-family:var(--font);display:flex;flex-direction:column;
   align-items:center;justify-content:center;padding:24px;
 }
 .lang-toggle{
-  position:fixed;top:12px;right:12px;z-index:20;
+  position:fixed;top:12px;inset-inline-end:12px;z-index:20;
   border:1px solid var(--border);background:var(--card);color:var(--text);
-  border-radius:10px;padding:6px 10px;cursor:pointer;font-weight:700
+  border-radius:10px;padding:6px 10px;cursor:pointer;font-weight:700;
+  font-family:var(--font)
 }
 
 .brand{
@@ -115,29 +118,46 @@ html,body{
 </div>
 
 <script>
+let statusTimer = null;
+function again(ms){
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(checkStatus, ms);
+}
+
 async function checkStatus(){
+  const dot = document.getElementById('dot');
+  const txt = document.getElementById('statusTxt');
   try{
     const r = await fetch('/status');
+    if(!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
-    const dot = document.getElementById('dot');
-    const txt = document.getElementById('statusTxt');
     if(d.ready){
       dot.className='dot ready';
-      txt.textContent=__tPipe('AI models are ready | مدل‌های هوش مصنوعی آماده هستند');
+      let msg = __tPipe('AI models are ready | مدل‌های هوش مصنوعی آماده هستند');
+      if(d.cameras) msg += ' · ' + d.cameras + ' ' + __tPipe('cameras | دوربین');
+      txt.textContent = msg;
+      // Keep polling slowly: the models can still fail after a restart.
+      again(15000);
     } else if(d.error){
       dot.className='dot error';
       txt.textContent = __tPipe('Model load error | خطا در بارگذاری مدل') + ': ' + d.error;
+      again(10000);
     } else {
       dot.className='dot loading';
       txt.textContent=__tPipe('Loading models... | در حال بارگذاری مدل‌ها...');
-      setTimeout(checkStatus, 2000);
+      again(2000);
     }
-  }catch{
-    setTimeout(checkStatus, 3000);
+  }catch(e){
+    dot.className='dot error';
+    txt.textContent = __tPipe('Server unreachable | سرور در دسترس نیست');
+    again(3000);
   }
 }
+
+// Re-label on language switch instead of waiting for the next poll.
+if(window.I18N && window.I18N.onChange) window.I18N.onChange(()=>checkStatus());
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkStatus(); });
 checkStatus();
 </script>
-<script src="/static/i18n.js"></script>
 </body>
 </html>
